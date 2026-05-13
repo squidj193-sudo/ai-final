@@ -16,6 +16,7 @@ flowchart TD
         Matrix[文獻矩陣 Skill]
         Direction[方向分析 Skill]
         State[角色狀態 Skill]
+        Graph[論文圖譜 Skill]
     end
     
     Core <--> Search
@@ -23,16 +24,20 @@ flowchart TD
     Core <--> Matrix
     Core <--> Direction
     Core <--> State
+    Core <--> Graph
     
     subgraph Data [資料與儲存]
         VectorDB[(向量資料庫)]
         DocStore[(文件儲存)]
         APIs[[學術 API]]
+        GraphDB[(圖譜狀態儲存)]
     end
     
     Search <--> APIs
     Analysis <--> VectorDB
     Analysis <--> DocStore
+    Graph <--> APIs
+    Graph <--> GraphDB
 ```
 
 ## 2. 組件說明
@@ -49,6 +54,7 @@ flowchart TD
 - **文獻矩陣 Skill**：將結構化資料彙整為比較表格。
 - **方向分析 Skill**：跨多份文件進行語意缺口分析，建議新的研究方向。
 - **角色狀態 Skill**：管理使用者的研究角色（大方向 / 中方向 / 小方向）。
+- **論文圖譜 Skill**：建立論文引用連結圖（Knowledge Graph），支援節點展開（Hop Expansion）、Louvain 社群偵測與 Gemini 圖譜報告生成。使用 **NetworkX** 計算圖指標，前端以 **react-force-graph** 渲染圖形。
 
 ### 2.3 RAG（檢索增強生成）管道
 RAG 管道是確保分析準確性的關鍵：
