@@ -104,33 +104,26 @@ flowchart TD
 
 | 模組 / Skill             | 任務                                           | 輸入                          | 輸出                                 |
 | ------------------------ | ---------------------------------------------- | ----------------------------- | ------------------------------------ |
-| Intent Router            | 判斷使用者意圖（搜尋 / 上傳 / 比較 / 建議）    | 使用者訊息                    | 任務類型與參數                        |
 | Paper Search Skill       | 根據關鍵字搜尋論文並回傳摘要                    | 關鍵字、方向、角色設定         | 論文清單與摘要                        |
-| Paper Reader Skill       | 讀取上傳的論文並產生結構化摘要                   | 論文 PDF / MD 檔              | 結構化摘要（目的、方法、結果、限制）   |
-| Preprocessing Skill      | 對文獻做前處理（MarkItDown 轉 MD、欄位提取）    | 原始論文檔案                   | 標準化 MD 格式文獻資料                |
-| Literature Matrix Skill  | 建立文獻比較矩陣                                | 多篇已前處理的文獻資料         | 文獻比較矩陣表格                      |
+| Literature Analysis Skill | 讀取論文、前處理 (MarkItDown) 並產生結構化摘要    | 論文 PDF / MD 檔              | 結構化摘要與標準化文獻資料             |
+| Literature Matrix Skill  | 建立文獻比較矩陣                                | 多篇已分析的文獻資料           | 文獻比較矩陣表格                      |
 | Direction Analysis Skill | 根據文獻分析該領域所有大方向，生成研究方向建議   | 文獻比較矩陣 + 摘要資料        | 研究方向清單與可行性建議               |
 | Role State Skill         | 管理使用者角色設定與方向狀態                    | 使用者設定 / 對話歷史          | 大 / 中 / 小方向狀態                  |
-| Memory / Summary Skill   | 記錄論文摘要與對話歷史                          | 摘要、對話紀錄                 | 持久化的摘要紀錄與上下文               |
 
 ## 架構圖
 
 ```mermaid
 flowchart LR
-    User[使用者] --> Router[Intent Router]
-    Router --> Search[Paper Search Skill]
-    Router --> Reader[Paper Reader Skill]
-    Router --> Matrix[Literature Matrix Skill]
-    Router --> Direction[Direction Analysis Skill]
+    User[使用者] --> Agent[Agent Core]
+    Agent --> Search[Paper Search Skill]
+    Agent --> Analysis[Literature Analysis Skill]
+    Agent --> Matrix[Literature Matrix Skill]
+    Agent --> Direction[Direction Analysis Skill]
+    Agent --> Role[Role State Skill]
 
-    Search --> Preprocess[Preprocessing Skill]
-    Reader --> Preprocess
-    Preprocess --> Matrix
+    Search --> Analysis
+    Analysis --> Matrix
     Matrix --> Direction
-
-    Role[Role State Skill] --> Router
-    Memory[Memory / Summary Skill] --> Router
-    Memory --> Reader
 ```
 
 ---
@@ -168,11 +161,10 @@ flowchart LR
 | ------------------------- | ---------------------------------------------------------- | ----------------------------------- | -------------------------------------------- | ---------------------------------------- |
 | `search_papers`           | 根據關鍵字或方向搜尋學術論文                                | 關鍵字、領域、年份範圍               | 論文清單（標題、作者、摘要、DOI）             | 使用者輸入搜尋關鍵字或系統需要補充文獻時  |
 | `parse_paper`             | 使用 MarkItDown 將上傳的論文 PDF 轉為 MD 並提取結構化內容   | 論文 PDF 檔案路徑                    | Markdown 格式的論文內容                       | 使用者上傳論文時                          |
-| `summarize_paper`         | 對單篇論文產生結構化摘要                                    | 論文 MD 內容                         | 結構化摘要（目的、方法、結果、結論、限制）     | 論文解析完成後自動觸發                    |
+| `summarize_paper`         | 對單篇論文產生結構化摘要並儲存至知識庫                      | 論文 MD 內容                         | 結構化摘要與儲存確認                          | 論文解析完成後自動觸發                    |
 | `build_literature_matrix` | 將多篇論文的摘要整合為文獻比較矩陣                          | 多篇論文的結構化摘要                 | 比較矩陣表格（Markdown 格式）                 | 使用者要求比較或累積足夠論文數量時        |
 | `analyze_directions`      | 根據文獻比較矩陣分析領域大方向並產生研究建議                 | 文獻比較矩陣 + 角色設定              | 研究方向清單、可行性分析、建議報告             | 使用者要求分析方向或完成文獻矩陣後        |
 | `check_role_state`        | 檢查使用者角色設定中的大 / 中 / 小方向，決定搜尋範圍         | 使用者角色設定資料                   | 目前方向層級與建議搜尋範圍                     | 使用者首次輸入或方向不明確時              |
-| `save_summary`            | 將論文摘要另外記錄並存入知識庫                               | 論文摘要、metadata                  | 儲存確認與索引 ID                              | 每次產生摘要後自動觸發                    |
 
 ---
 
