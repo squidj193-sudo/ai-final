@@ -1,0 +1,45 @@
+---
+name: AI Research Assistant Implementation
+description: Technical implementation guide and coding standards for the AI Research Assistant Agent. Provides instructions for environment setup, skill development, and RAG integration.
+version: 1.0.0
+category: Documentation / Implementation
+---
+
+# Implementation Guide: AI Research Assistant Agent
+
+## 1. Environment & Standards
+- **Runtime**: Python 3.10+ or Node.js 18+.
+- **Model**: Always use `gemini-2.5-flash`.
+- **Coding Standard**: Follow PEP 8 (Python) or Airbnb Style Guide (JS). Use async/await for all IO-bound operations (API calls, file parsing).
+
+## 2. Directory Structure
+```text
+/ai-final
+├── /skills          # .skill files and related logic
+├── /src             # Core application source code
+│   ├── /agents      # Agent Core & Orchestration
+│   ├── /tools       # Search, Parse, Matrix tools
+│   └── /rag         # Vector DB & MarkItDown integration
+├── /data            # Local document storage & cache
+├── /tests           # Unit and integration tests
+├── prd.skill        # Project PRD
+├── architecture.skill
+└── models.skill
+```
+
+## 3. Skill Development Workflow
+For each new Skill (e.g., `SearchSkill`):
+1. **Define Interface**: Standardize input (JSON) and output (JSON).
+2. **Implement Tool**: Write the atomic function to perform the task (e.g., calling an API).
+3. **Draft .skill**: Create the instruction file describing how the agent should use the tool.
+4. **Unit Test**: Ensure the tool handles edge cases (e.g., API timeout, empty results).
+
+## 4. RAG Integration Requirements
+- **Parser**: Use `markitdown` for all PDF conversions.
+- **Chunking**: Use recursive character splitting with a chunk size of 1000 and overlap of 200.
+- **Embeddings**: Use Google Generative AI Embeddings (`models/embedding-001`).
+- **Vector Store**: Standardize on ChromaDB for local development.
+
+## 5. Error Handling
+- **Graceful Failure**: If a paper cannot be parsed, log the error and notify the user with a specific reason.
+- **Retry Logic**: Implement exponential backoff for academic API calls to handle rate limiting.

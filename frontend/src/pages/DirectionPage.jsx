@@ -1,0 +1,77 @@
+import { useState } from 'react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
+import { sendChat } from '../api.js'
+import './DirectionPage.css'
+
+export default function DirectionPage({ sessionId }) {
+  const [report, setReport] = useState('')
+  const [loading, setLoading] = useState(false)
+
+  const analyze = async () => {
+    setLoading(true)
+    try {
+      const res = await sendChat(sessionId, '分析研究方向')
+      setReport(res.content)
+    } catch (e) {
+      setReport(`⚠️ 發生錯誤：${e.message}`)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const exportMd = () => {
+    const blob = new Blob([report], { type: 'text/markdown' })
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = 'research-directions.md'
+    a.click()
+  }
+
+  return (
+    <div className="direction-page">
+      <div className="direction-header">
+        <div>
+          <h1>🧭 研究方向建議</h1>
+          <p>根據文獻矩陣，AI 自動識別研究缺口並提出可行建議</p>
+        </div>
+        <div className="direction-actions">
+          <button id="analyze-direction-btn" className="btn btn-primary" onClick={analyze} disabled={loading}>
+            {loading ? <><span className="spinner" /> 分析中...</> : '🧠 開始分析'}
+          </button>
+          {report && !report.startsWith('⚠️') && (
+            <button id="export-direction-btn" className="btn btn-ghost" onClick={exportMd}>
+              📥 匯出報告
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="direction-content">
+        {!report && !loading ? (
+          <div className="empty-state">
+            <div className="direction-hero">
+              <div style={{ fontSize: 64 }}>🧭</div>
+              <div className="hero-glow" />
+            </div>
+            <h3>尚未分析研究方向</h3>
+            <p>請先生成文獻比較矩陣，系統將根據矩陣識別研究缺口，並為您量身提出可行的研究方向建議。</p>
+            <button className="btn btn-primary" onClick={analyze}>🧠 立即分析</button>
+          </div>
+        ) : loading ? (
+          <div className="loading-state">
+            <div className="spinner" style={{ width: 40, height: 40, borderWidth: 3 }} />
+            <p>Agent 正在深度分析文獻矩陣，尋找研究缺口...</p>
+            <p className="loading-sub">此步驟可能需要 15-30 秒，請稍候</p>
+          </div>
+        ) : (
+          <div className="direction-body glass-card fade-in">
+            <div className="markdown-body">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>{report}</ReactMarkdown>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}

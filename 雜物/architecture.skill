@@ -1,0 +1,39 @@
+---
+name: AI Research Assistant Architecture
+description: Technical architecture and internal design of the AI Research Assistant Agent. Defines the relationship between the Agent Core and Skill Modules.
+version: 1.0.0
+category: Documentation / Technical
+---
+
+# Architecture: AI Research Assistant Agent
+
+## 1. System Philosophy
+The system is built on a **Modular Skill-Based Agent** architecture. The "Agent Core" acts as a stateless orchestrator, while domain-specific logic is encapsulated within "Skills". This allows for independent development, testing, and scaling of each functional area.
+
+## 2. Component Hierarchy
+
+### 2.1 Agent Core (Orchestrator)
+- **Role**: Intent recognition, tool selection, and multi-step reasoning.
+- **Decision Engine**: LLM (e.g., Gemini / GPT-4) using Chain-of-Thought (CoT) to decide which Skill to invoke.
+- **Context Manager**: Tracks the current conversation state, active research direction (Role State), and loaded documents.
+
+### 2.2 Skill Layer (Atomic Modules)
+- **Paper Search Skill**: Interface for academic APIs (Semantic Scholar, arXiv).
+- **Analysis Skill**: Document parsing (MarkItDown) and RAG management.
+- **Matrix Skill**: Data synthesis and comparative logic.
+- **Direction Skill**: Inference and gap analysis.
+- **State Skill**: Persistence of user profile and research stage.
+
+## 3. Communication Patterns
+- **Skill-to-Skill**: Communication is mediated by the Agent Core. For example, the *Search Skill* returns metadata, which the Agent Core then feeds into the *Analysis Skill* for deeper processing.
+- **Data Exchange**: All Skills MUST use standardized JSON schemas for data transfer to ensure interoperability.
+
+## 4. RAG Pipeline (Data Flow)
+1. **Ingestion**: PDF -> MarkItDown -> Markdown Content.
+2. **Transform**: Markdown -> Semantic Chunks -> Vector Embeddings.
+3. **Retrieval**: User Query -> Vector Search -> Top-K Chunks.
+4. **Generation**: Context (Chunks) + Prompt -> LLM Answer.
+
+## 5. Security & Isolation
+- **Document Isolation**: Papers uploaded in one conversation context must not be accessible to other users or other conversation threads unless explicitly shared.
+- **Tool Sandbox**: External tool calls (API requests, file system operations) are monitored and restricted by the Agent Core's security policy.

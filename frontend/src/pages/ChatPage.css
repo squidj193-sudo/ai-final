@@ -1,0 +1,166 @@
+.chat-page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  position: relative;
+}
+
+/* ─── 訊息區 ─── */
+.messages-container {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.message {
+  display: flex;
+  gap: 12px;
+  max-width: 900px;
+  width: 100%;
+}
+
+.message-assistant { align-self: flex-start; }
+.message-user { align-self: flex-end; flex-direction: row-reverse; }
+
+.message-avatar {
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+}
+
+.message-bubble {
+  padding: 14px 18px;
+  border-radius: var(--radius-md);
+  max-width: 720px;
+  position: relative;
+}
+
+.message-bubble-assistant {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+}
+
+.message-bubble-user {
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+  color: white;
+}
+
+.message-bubble-user p { color: white; margin: 0; }
+
+.message-type-badge {
+  display: inline-block;
+  margin-top: 10px;
+}
+
+/* ─── 打字動畫 ─── */
+.typing-indicator {
+  display: flex;
+  gap: 5px;
+  padding: 4px 0;
+}
+.typing-indicator span {
+  width: 7px; height: 7px;
+  background: var(--accent-primary);
+  border-radius: 50%;
+  animation: pulse 1.2s ease-in-out infinite;
+}
+.typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+.typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+
+/* ─── 上傳視窗 ─── */
+.upload-modal {
+  position: absolute;
+  bottom: 90px;
+  left: 20px;
+  right: 20px;
+  max-width: 520px;
+  padding: 20px;
+  z-index: 100;
+  box-shadow: var(--shadow-card), var(--shadow-glow);
+}
+
+.upload-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+.upload-modal-header h3 { font-size: 15px; font-weight: 600; }
+
+.upload-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.upload-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.upload-form input {
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 9px 12px;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color var(--transition-fast);
+}
+.upload-form input:focus { border-color: var(--accent-primary); }
+.upload-form input::placeholder { color: var(--text-muted); }
+
+.file-input-label {
+  flex-direction: row !important;
+  align-items: center;
+  background: var(--bg-input);
+  border: 1px dashed var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  justify-content: space-between;
+}
+
+.upload-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+/* ─── 輸入列 ─── */
+.input-bar {
+  margin: 0 16px 16px;
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-color: var(--border-accent);
+}
+
+.chat-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text-primary);
+  font-size: 14px;
+  font-family: inherit;
+}
+.chat-input::placeholder { color: var(--text-muted); }

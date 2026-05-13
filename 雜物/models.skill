@@ -1,0 +1,24 @@
+---
+name: AI Research Assistant Models
+description: Model configuration and selection rules for the AI Research Assistant Agent. Enforces the use of Gemini 2.5 Flash for all core agentic tasks.
+version: 1.0.0
+category: Configuration / Models
+---
+
+# Models: AI Research Assistant Agent
+
+## 1. Primary Model Specification
+The system is strictly configured to use **Gemini 2.5 Flash** as the default LLM for all operations.
+
+## 2. Configuration Rules
+- **Reasoning**: All intent recognition and multi-step planning must be performed by `gemini-2.5-flash`.
+- **Synthesis**: Document summarization and literature matrix generation must use `gemini-2.5-flash`.
+- **Search Filtering**: Keyword extraction and relevance ranking during paper search must use `gemini-2.5-flash`.
+
+## 3. Performance Constraints
+- **Latency**: The Flash model is selected to maintain a responsive interactive experience (response time < 2s for simple queries).
+- **Context Window**: Leverage the large context window of `gemini-2.5-flash` for multi-document comparison without excessive chunking.
+- **Safety**: Ensure safety filters are active and aligned with Google DeepMind's best practices.
+
+## 4. Fallback Logic
+- In the event of temporary unavailability of `gemini-2.5-flash`, the system should queue requests rather than falling back to non-approved models, unless otherwise specified by the system administrator.
