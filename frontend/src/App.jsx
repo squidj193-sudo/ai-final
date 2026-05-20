@@ -20,12 +20,40 @@ function getOrCreateSession() {
   return id
 }
 
+function getSavedConversations(defaultId) {
+  const saved = localStorage.getItem('ai_conversations')
+  if (saved) return JSON.parse(saved)
+  return [{ id: defaultId, label: '研究對話 1', active: true }]
+}
+
 export default function App() {
-  const [sessionId]   = useState(getOrCreateSession)
+  const [sessionId, setSessionId] = useState(getOrCreateSession)
   const [activePage, setActivePage] = useState('chat')
-  const [conversations, setConversations] = useState([
-    { id: sessionId, label: '研究對話 1', active: true },
-  ])
+  const [conversations, setConversations] = useState(() => getSavedConversations(sessionId))
+
+  const switchConversation = (id) => {
+    setSessionId(id)
+    localStorage.setItem('ai_session_id', id)
+    setConversations(prev => {
+      const next = prev.map(c => ({ ...c, active: c.id === id }))
+      localStorage.setItem('ai_conversations', JSON.stringify(next))
+      return next
+    })
+    setActivePage('chat')
+  }
+
+  const handleNewChat = () => {
+    const newId = uuidv4()
+    const newLabel = `研究對話 ${conversations.length + 1}`
+    setSessionId(newId)
+    localStorage.setItem('ai_session_id', newId)
+    setConversations(prev => {
+      const next = [...prev.map(c => ({ ...c, active: false })), { id: newId, label: newLabel, active: true }]
+      localStorage.setItem('ai_conversations', JSON.stringify(next))
+      return next
+    })
+    setActivePage('chat')
+  }
   const [showRoleModal, setShowRoleModal] = useState(false)
   const [roleForm, setRoleForm] = useState({ large: '', medium: '', small: '' })
   const [roleDesc, setRoleDesc] = useState('尚未設定研究方向')
@@ -58,7 +86,7 @@ export default function App() {
 
   const renderPage = () => {
     switch (activePage) {
-      case 'chat':      return <ChatPage sessionId={sessionId} onSummaryUpdate={() => setSummaryKey(k => k + 1)} />
+      case 'chat':      return <ChatPage key={sessionId} sessionId={sessionId} onSummaryUpdate={() => setSummaryKey(k => k + 1)} />
       case 'summary':   return <SummaryPage key={summaryKey} sessionId={sessionId} />
       case 'matrix':    return <MatrixPage sessionId={sessionId} />
       case 'direction': return <DirectionPage sessionId={sessionId} />
@@ -106,12 +134,17 @@ export default function App() {
         {/* 對話列表 */}
         <div className="sidebar-section">
           <div className="section-header">
-            <span>對話記錄</span>
-            <button className="btn btn-icon" id="new-chat-btn" title="新增對話">＋</button>
+            <span>對話歷史紀錄</span>
+            <button className="btn btn-icon" id="new-chat-btn" title="新增對話" onClick={handleNewChat}>＋</button>
           </div>
           <ul className="conv-list">
             {conversations.map(c => (
-              <li key={c.id} className={`conv-item ${c.active ? 'active' : ''}`}>
+              <li 
+                key={c.id} 
+                className={`conv-item ${c.active ? 'active' : ''}`}
+                onClick={() => switchConversation(c.id)}
+                style={{ cursor: 'pointer' }}
+              >
                 <span className="conv-dot">●</span>
                 <span className="conv-label">{c.label}</span>
               </li>
