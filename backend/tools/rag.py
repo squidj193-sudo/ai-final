@@ -36,11 +36,25 @@ class RAGStore:
     def __init__(self, db_path: str = "./data/chroma"):
         Path(db_path).mkdir(parents=True, exist_ok=True)
         self._client = chromadb.PersistentClient(path=db_path)
-        # 使用 Google Generative AI Embeddings
+        from chromadb.api.types import Documents, EmbeddingFunction, Embeddings
+        import google.generativeai as genai
+
+        class CustomGoogleEmbeddingFunction(EmbeddingFunction):
+            def __init__(self, api_key: str, model_name: str = "models/embedding-001"):
+                genai.configure(api_key=api_key)
+                self.model_name = model_name
+
+            def __call__(self, input: Documents) -> Embeddings:
+                result = genai.embed_content(
+                    model=self.model_name,
+                    content=input,
+                    task_type="retrieval_document"
+                )
+                return result['embedding']
+
         api_key = os.getenv("GEMINI_API_KEY", "")
-        ef = embedding_functions.GoogleGenerativeAiEmbeddingFunction(
-            api_key=api_key, model_name="models/embedding-001"
-        )
+        ef = CustomGoogleEmbeddingFunction(api_key=api_key)
+        
         self._collection = self._client.get_or_create_collection(
             name=self.COLLECTION_NAME, embedding_function=ef
         )
