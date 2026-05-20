@@ -27,8 +27,30 @@ def parse_pdf_to_markdown(file_path: str) -> str:
     return result.text_content
 
 
+from chromadb.api.types import Documents, Embeddings, EmbeddingFunction
+
+class GeminiEmbeddingFunction(EmbeddingFunction[Documents]):
+    def __init__(self, api_key: str, model_name: str = "models/embedding-001"):
+        self.api_key = api_key
+        self.model_name = model_name
+
+    def __call__(self, input: Documents) -> Embeddings:
+        import google.generativeai as genai
+        if self.api_key:
+            genai.configure(api_key=self.api_key)
+        embeddings_list = []
+        for text in input:
+            embedding_result = genai.embed_content(
+                model=self.model_name,
+                content=text,
+                task_type="retrieval_document"
+            )
+            embeddings_list.append(embedding_result["embedding"])
+        return embeddings_list
+
+
 # ─── ChromaDB 向量儲存 ────────────────────────────────────────────────
-class CustomGoogleEmbeddingFunction(embedding_functions.EmbeddingFunction[chromadb.Documents]):
+class CustomGeminiEmbeddingFunction(chromadb.EmbeddingFunction):
     def __init__(self, api_key: str, model_name: str = "models/embedding-001"):
         import google.generativeai as genai
         genai.configure(api_key=api_key)
@@ -36,15 +58,12 @@ class CustomGoogleEmbeddingFunction(embedding_functions.EmbeddingFunction[chroma
 
     def __call__(self, input: chromadb.Documents) -> chromadb.Embeddings:
         import google.generativeai as genai
-        result = genai.embed_content(
+        res = genai.embed_content(
             model=self.model_name,
             content=input,
-            task_type="retrieval_document",
+            task_type="retrieval_document"
         )
-        # Handle cases where multiple documents are embedded vs a single document
-        if isinstance(result['embedding'][0], float):
-            return [result['embedding']]
-        return result['embedding']
+        return res["embedding"]
 
 class RAGStore:
     """管理論文向量索引與語意檢索"""
@@ -54,11 +73,25 @@ class RAGStore:
     def __init__(self, db_path: str = "./data/chroma"):
         Path(db_path).mkdir(parents=True, exist_ok=True)
         self._client = chromadb.PersistentClient(path=db_path)
-        # 使用自訂的 Google Embedding 函數，避免 ChromaDB 內建函數版本相容性問題
+        from chromadb.api.types import Documents, EmbeddingFunction, Embeddings
+        import google.generativeai as genai
+
+        class CustomGoogleEmbeddingFunction(EmbeddingFunction):
+            def __init__(self, api_key: str, model_name: str = "models/embedding-001"):
+                genai.configure(api_key=api_key)
+                self.model_name = model_name
+
+            def __call__(self, input: Documents) -> Embeddings:
+                result = genai.embed_content(
+                    model=self.model_name,
+                    content=input,
+                    task_type="retrieval_document"
+                )
+                return result['embedding']
+
         api_key = os.getenv("GEMINI_API_KEY", "")
-        ef = CustomGoogleEmbeddingFunction(
-            api_key=api_key, model_name="models/embedding-001"
-        )
+        ef = CustomGoogleEmbeddingFunction(api_key=api_key)
+        
         self._collection = self._client.get_or_create_collection(
             name=self.COLLECTION_NAME, embedding_function=ef
         )

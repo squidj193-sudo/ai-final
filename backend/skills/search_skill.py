@@ -24,7 +24,7 @@ class SearchSkill:
 
     def __init__(self, api_key: Optional[str] = None):
         self.api_key = api_key
-        self.headers = {"x-api-key": api_key} if api_key else {}
+        self.headers = {"x-api-key": api_key} if api_key and api_key.strip() else {}
 
     async def search(
         self,
@@ -51,11 +51,21 @@ class SearchSkill:
             params["year"] = year_range
 
         async with httpx.AsyncClient(timeout=20) as client:
-            resp = await client.get(
-                self.SEMANTIC_SCHOLAR_URL, params=params, headers=self.headers
-            )
-            resp.raise_for_status()
-            data = resp.json()
+            max_retries = 3
+            for attempt in range(max_retries):
+                resp = await client.get(
+                    self.SEMANTIC_SCHOLAR_URL, params=params, headers=self.headers
+                )
+                try:
+                    resp.raise_for_status()
+                    data = resp.json()
+                    break
+                except httpx.HTTPStatusError as e:
+                    if e.response.status_code == 429 and attempt < max_retries - 1:
+                        import asyncio
+                        await asyncio.sleep(2 ** attempt)
+                        continue
+                    raise e
 
         results = []
         for item in data.get("data", []):
