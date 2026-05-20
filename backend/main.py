@@ -56,7 +56,7 @@ class RoleStateRequest(BaseModel):
 # ─── API 端點 ─────────────────────────────────────────────────────────
 @app.get("/health")
 def health_check():
-    return {"status": "ok", "model": "gemini-2.5-flash"}
+    return {"status": "ok", "model": os.getenv("GEMINI_MODEL", "gemma-4-26b-a4b-it")}
 
 
 @app.post("/api/chat")

@@ -41,7 +41,7 @@ SUMMARY_PROMPT = """你是一位學術研究助理。請根據以下論文內容
 class AnalysisSkill:
     """文獻分析 Skill：生成論文結構化摘要"""
 
-    MODEL_NAME = "gemini-2.5-flash"
+    MODEL_NAME = os.getenv("GEMINI_MODEL", "gemma-4-26b-a4b-it")
 
     def __init__(self):
         api_key = os.getenv("GEMINI_API_KEY")
