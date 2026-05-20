@@ -47,7 +47,7 @@ export default function ChatPage({ sessionId, onSummaryUpdate }) {
     try {
       const res = await sendChat(sessionId, userMsg)
       addMessage('assistant', res.content, res.type, { papers: res.papers })
-      if (res.type === 'matrix') onSummaryUpdate?.()
+      if (res.type === 'matrix' || res.type === 'analyze') onSummaryUpdate?.()
     } catch (e) {
       addMessage('assistant', `⚠️ 發生錯誤：${e.message}`, 'error')
     } finally {
