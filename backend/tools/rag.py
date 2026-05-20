@@ -50,6 +50,21 @@ class GeminiEmbeddingFunction(EmbeddingFunction[Documents]):
 
 
 # ─── ChromaDB 向量儲存 ────────────────────────────────────────────────
+class CustomGeminiEmbeddingFunction(chromadb.EmbeddingFunction):
+    def __init__(self, api_key: str, model_name: str = "models/embedding-001"):
+        import google.generativeai as genai
+        genai.configure(api_key=api_key)
+        self.model_name = model_name
+
+    def __call__(self, input: chromadb.Documents) -> chromadb.Embeddings:
+        import google.generativeai as genai
+        res = genai.embed_content(
+            model=self.model_name,
+            content=input,
+            task_type="retrieval_document"
+        )
+        return res["embedding"]
+
 class RAGStore:
     """管理論文向量索引與語意檢索"""
 
