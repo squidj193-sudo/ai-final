@@ -27,6 +27,28 @@ def parse_pdf_to_markdown(file_path: str) -> str:
     return result.text_content
 
 
+from chromadb.api.types import Documents, Embeddings, EmbeddingFunction
+
+class GeminiEmbeddingFunction(EmbeddingFunction[Documents]):
+    def __init__(self, api_key: str, model_name: str = "models/embedding-001"):
+        self.api_key = api_key
+        self.model_name = model_name
+
+    def __call__(self, input: Documents) -> Embeddings:
+        import google.generativeai as genai
+        if self.api_key:
+            genai.configure(api_key=self.api_key)
+        embeddings_list = []
+        for text in input:
+            embedding_result = genai.embed_content(
+                model=self.model_name,
+                content=text,
+                task_type="retrieval_document"
+            )
+            embeddings_list.append(embedding_result["embedding"])
+        return embeddings_list
+
+
 # ─── ChromaDB 向量儲存 ────────────────────────────────────────────────
 class CustomGeminiEmbeddingFunction(chromadb.EmbeddingFunction):
     def __init__(self, api_key: str, model_name: str = "models/embedding-001"):
@@ -53,7 +75,9 @@ class RAGStore:
         self._client = chromadb.PersistentClient(path=db_path)
         # 使用 Google Generative AI Embeddings
         api_key = os.getenv("GEMINI_API_KEY", "")
-        ef = CustomGeminiEmbeddingFunction(api_key=api_key, model_name="models/embedding-001")
+        ef = GeminiEmbeddingFunction(
+            api_key=api_key, model_name="models/embedding-001"
+        )
         self._collection = self._client.get_or_create_collection(
             name=self.COLLECTION_NAME, embedding_function=ef
         )
