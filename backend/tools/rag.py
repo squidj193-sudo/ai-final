@@ -87,7 +87,7 @@ class RAGStore:
     def __init__(self, db_path: str = "./data/chroma"):
         Path(db_path).mkdir(parents=True, exist_ok=True)
         self._client = chromadb.PersistentClient(path=db_path)
-        # 使用 Google Generative AI Embeddings
+        # 使用自訂的 Google Embedding 函數，避免 ChromaDB 內建函數版本相容性問題
         api_key = os.getenv("GEMINI_API_KEY", "")
         ef = CustomGeminiEmbeddingFunction(api_key=api_key, model_name="models/gemini-embedding-001")
         self._collection = self._client.get_or_create_collection(
