@@ -24,7 +24,7 @@ class SearchSkill:
 
     def __init__(self, api_key: Optional[str] = None):
         self.api_key = api_key
-        self.headers = {"x-api-key": api_key} if api_key else {}
+        self.headers = {"x-api-key": api_key} if api_key and api_key.strip() else {}
 
     async def search(
         self,
