@@ -1,12 +1,18 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { sendChat } from '../api.js'
 import './DirectionPage.css'
 
 export default function DirectionPage({ sessionId }) {
-  const [report, setReport] = useState('')
+  const [report, setReport] = useState(() => localStorage.getItem(`direction_${sessionId}`) || '')
   const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    if (report && !report.startsWith('⚠️')) {
+      localStorage.setItem(`direction_${sessionId}`, report)
+    }
+  }, [report, sessionId])
 
   const analyze = async () => {
     setLoading(true)

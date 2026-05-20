@@ -5,14 +5,25 @@ import { sendChat, uploadPaper } from '../api.js'
 import './ChatPage.css'
 
 export default function ChatPage({ sessionId, onSummaryUpdate }) {
-  const [messages, setMessages] = useState([
-    {
-      id: 1,
-      role: 'assistant',
-      content: '您好！我是 AI 研究助理 🔬\n\n您可以：\n- 輸入關鍵字搜尋論文（例：perovskite solar cell）\n- 上傳 PDF 論文進行分析\n- 輸入「生成比較矩陣」整合已分析的論文\n- 輸入「分析研究方向」獲取可行研究建議\n\n請問您想如何開始？',
-      type: 'chat',
-    },
-  ])
+  const [messages, setMessages] = useState(() => {
+    try {
+      const saved = localStorage.getItem(`chat_messages_${sessionId}`)
+      if (saved) return JSON.parse(saved)
+    } catch (e) {}
+    return [
+      {
+        id: 1,
+        role: 'assistant',
+        content: '您好！我是 AI 研究助理 🔬\n\n您可以：\n- 輸入關鍵字搜尋論文（例：perovskite solar cell）\n- 上傳 PDF 論文進行分析\n- 輸入「生成比較矩陣」整合已分析的論文\n- 輸入「分析研究方向」獲取可行研究建議\n\n請問您想如何開始？',
+        type: 'chat',
+      },
+    ]
+  })
+  
+  useEffect(() => {
+    localStorage.setItem(`chat_messages_${sessionId}`, JSON.stringify(messages))
+  }, [messages, sessionId])
+
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [showUpload, setShowUpload] = useState(false)
@@ -38,7 +49,7 @@ export default function ChatPage({ sessionId, onSummaryUpdate }) {
     try {
       const res = await sendChat(sessionId, userMsg)
       addMessage('assistant', res.content, res.type, { papers: res.papers })
-      if (res.type === 'matrix') onSummaryUpdate?.()
+      if (res.type === 'matrix' || res.type === 'analyze') onSummaryUpdate?.()
     } catch (e) {
       addMessage('assistant', `⚠️ 發生錯誤：${e.message}`, 'error')
     } finally {
