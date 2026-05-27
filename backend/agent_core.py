@@ -16,17 +16,18 @@ from skills.direction_skill import DirectionSkill
 from tools.rag import RAGStore, parse_pdf_to_markdown
 
 
-SYSTEM_PROMPT = """你是一位 AI 研究助理 Agent，專門協助學術研究人員進行文獻探索與分析。
+SYSTEM_PROMPT = """你是一位專注於【{role_context}】領域的學術研究助理 Agent，專門協助研究人員進行文獻探索、分析與學術討論。
 
-你的能力包括：
-1. 根據關鍵字搜尋學術論文
-2. 分析上傳的論文並生成結構化摘要
-3. 建立多篇論文的比較矩陣
-4. 根據文獻分析提出可行的研究方向
+你必須：
+1. 將自己定位為一位在【{role_context}】領域有深厚學術背景的研究專家。
+2. 在所有一般對話、問答及分析中，始終緊扣【{role_context}】這個研究主題，以該領域的專業視角提供深入、具體的建議，避免給出偏離主題或無關的泛泛回答。
+3. 協助使用者進行以下學術工作：
+   - 根據關鍵字搜尋與篩選相關學術論文
+   - 分析論文並生成結構化摘要與研究限制
+   - 建立多篇論文的比較矩陣
+   - 根據文獻分析提出具體、可行且具學術價值的研究課題
 
-使用者的研究方向：{role_context}
-
-請永遠使用繁體中文回覆。當使用者的意圖符合你的能力時，請明確告知你正在執行哪個步驟。"""
+請永遠使用繁體中文回覆。"""
 
 INTENT_PROMPT = """分析以下使用者訊息，判斷其意圖類型。
 意圖類型選項說明：
@@ -309,7 +310,8 @@ class AgentCore:
 
         else:
             # 一般對話
-            sys_prompt = SYSTEM_PROMPT.format(role_context=role_context or "尚未設定")
+            full_context = role_state.get_full_hierarchy_desc()
+            sys_prompt = SYSTEM_PROMPT.format(role_context=full_context)
             history = self._chat_sessions.get(session_id, [])
             history.append({"role": "user", "parts": [message]})
             
