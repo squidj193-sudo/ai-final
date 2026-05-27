@@ -1,15 +1,12 @@
 """
 AI 研究助理 Agent — RAG 工具
-整合 MarkItDown 與 ChromaDB 建立向量知識庫
+無 Embedding 版本：以 Markdown 檔案直接儲存並利用關鍵字比對檢索段落
 """
 import os
-import uuid
+import json
+import re
 from pathlib import Path
 from typing import Optional
-
-import chromadb
-from chromadb.utils import embedding_functions
-import google.generativeai as genai
 
 # ─── MarkItDown 解析器 ───────────────────────────────────────────────
 try:
@@ -27,96 +24,90 @@ def parse_pdf_to_markdown(file_path: str) -> str:
     return result.text_content
 
 
-from chromadb.api.types import Documents, Embeddings, EmbeddingFunction
-
-class GeminiEmbeddingFunction(EmbeddingFunction[Documents]):
-    def __init__(self, api_key: str, model_name: str = "models/gemini-embedding-001"):
-        self.api_key = api_key
-        self.model_name = model_name
-
-    def __call__(self, input: Documents) -> Embeddings:
-        import google.generativeai as genai
-        if self.api_key:
-            genai.configure(api_key=self.api_key)
-        embeddings_list = []
-        for text in input:
-            embedding_result = genai.embed_content(
-                model=self.model_name,
-                content=text,
-                task_type="retrieval_document"
-            )
-            embeddings_list.append(embedding_result["embedding"])
-        return embeddings_list
-
-
-# ─── ChromaDB 向量儲存 ────────────────────────────────────────────────
-class CustomGeminiEmbeddingFunction(chromadb.EmbeddingFunction):
-    def __init__(self, api_key: str, model_name: str = "models/gemini-embedding-001"):
-        import google.generativeai as genai
-        genai.configure(api_key=api_key)
-        self.model_name = model_name
-
-    def __call__(self, input: chromadb.Documents) -> chromadb.Embeddings:
-        import google.generativeai as genai
-        res = genai.embed_content(
-            model=self.model_name,
-            content=input,
-            task_type="retrieval_document"
-        )
-        return res["embedding"]
-
+# ─── RAGStore (檔案系統 + 關鍵字比對) ──────────────────────────────────
 class RAGStore:
-    """管理論文向量索引與語意檢索"""
+    """管理論文 Markdown 本地檔案儲存與無 Embedding 語意/關鍵字檢索"""
 
-    COLLECTION_NAME = "papers"
-
-    def __init__(self, db_path: str = "./data/chroma"):
-        Path(db_path).mkdir(parents=True, exist_ok=True)
-        self._client = chromadb.PersistentClient(path=db_path)
-        from chromadb.api.types import Documents, EmbeddingFunction, Embeddings
-        import google.generativeai as genai
-
-        class CustomGoogleEmbeddingFunction(EmbeddingFunction):
-            def __init__(self, api_key: str, model_name: str = "models/gemini-embedding-001"):
-                genai.configure(api_key=api_key)
-                self.model_name = model_name
-
-            def __call__(self, input: Documents) -> Embeddings:
-                result = genai.embed_content(
-                    model=self.model_name,
-                    content=input,
-                    task_type="retrieval_document"
-                )
-                return result['embedding']
-
-        api_key = os.getenv("GEMINI_API_KEY", "")
-        ef = CustomGoogleEmbeddingFunction(api_key=api_key)
-        
-        self._collection = self._client.get_or_create_collection(
-            name=self.COLLECTION_NAME, embedding_function=ef
-        )
+    def __init__(self, db_path: str = "./data/papers"):
+        self.db_path = Path(db_path)
+        self.db_path.mkdir(parents=True, exist_ok=True)
 
     def add_document(
         self,
         paper_id: str,
         content: str,
         metadata: Optional[dict] = None,
-        chunk_size: int = 1000,
-        overlap: int = 200,
+        chunk_size: int = 1500,
+        overlap: int = 300,
     ) -> int:
-        """將文件切分後存入向量庫，回傳切分數量"""
+        """將文件與元資料直接寫入本地 Markdown 與 JSON 檔案"""
+        # 1. 寫入 Markdown 檔案
+        md_file = self.db_path / f"{paper_id}.md"
+        md_file.write_text(content, encoding="utf-8")
+
+        # 2. 寫入 Metadata 檔案
+        meta_file = self.db_path / f"{paper_id}.json"
+        meta_data = metadata or {}
+        meta_data["paper_id"] = paper_id
+        meta_file.write_text(json.dumps(meta_data, ensure_ascii=False, indent=2), encoding="utf-8")
+
+        # 3. 回傳切分的段落數
         chunks = self._chunk_text(content, chunk_size, overlap)
-        ids = [f"{paper_id}_chunk_{i}" for i in range(len(chunks))]
-        metas = [{**(metadata or {}), "paper_id": paper_id, "chunk_index": i} for i in range(len(chunks))]
-        self._collection.add(documents=chunks, ids=ids, metadatas=metas)
         return len(chunks)
 
     def query(self, query_text: str, n_results: int = 5) -> list[dict]:
-        """語意搜尋，回傳相關段落清單"""
-        results = self._collection.query(query_texts=[query_text], n_results=n_results)
+        """基於關鍵字/詞頻匹配的本地文件檢索"""
+        query_words = [w.lower() for w in re.findall(r'\w+', query_text) if len(w) > 1]
+        if not query_words:
+            # 如果沒有有效關鍵字，回傳空清單
+            return []
+
+        all_candidates = []
+
+        # 遍歷所有已儲存的論文檔案
+        for md_file in self.db_path.glob("*.md"):
+            paper_id = md_file.stem
+            meta_file = self.db_path / f"{paper_id}.json"
+            
+            # 讀取 Metadata
+            metadata = {}
+            if meta_file.exists():
+                try:
+                    metadata = json.loads(meta_file.read_text(encoding="utf-8"))
+                except Exception:
+                    pass
+
+            content = md_file.read_text(encoding="utf-8")
+            # 將內文切分為 chunks (使用與 add 相同的 chunk 策略)
+            chunks = self._chunk_text(content, size=1500, overlap=300)
+
+            for i, chunk in enumerate(chunks):
+                # 簡單計算詞頻得分
+                chunk_lower = chunk.lower()
+                score = 0
+                for word in query_words:
+                    # 給予精確匹配更高的分數，也支持部分匹配
+                    count = chunk_lower.count(word)
+                    if count > 0:
+                        score += count * 1.0
+                
+                if score > 0:
+                    chunk_meta = {**metadata, "paper_id": paper_id, "chunk_index": i}
+                    all_candidates.append({
+                        "score": score,
+                        "content": chunk,
+                        "metadata": chunk_meta
+                    })
+
+        # 依分數排序，回傳前 n_results 個結果
+        all_candidates.sort(key=lambda x: x["score"], reverse=True)
+        
         output = []
-        for doc, meta in zip(results["documents"][0], results["metadatas"][0]):
-            output.append({"content": doc, "metadata": meta})
+        for cand in all_candidates[:n_results]:
+            output.append({
+                "content": cand["content"],
+                "metadata": cand["metadata"]
+            })
         return output
 
     @staticmethod
@@ -127,3 +118,4 @@ class RAGStore:
             chunks.append(text[start:end])
             start += size - overlap
         return chunks
+
