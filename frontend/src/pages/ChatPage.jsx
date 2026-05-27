@@ -6,9 +6,11 @@ import './ChatPage.css'
 
 export default function ChatPage({ sessionId, onSummaryUpdate }) {
   const [messages, setMessages] = useState(() => {
-    const saved = localStorage.getItem(`chat_history_${sessionId}`)
-    if (saved) {
-      try { return JSON.parse(saved) } catch (e) { console.error(e) }
+    try {
+      const saved = localStorage.getItem(`chat_history_${sessionId}`)
+      if (saved) return JSON.parse(saved)
+    } catch (e) {
+      console.error(e)
     }
     return [
       {
@@ -19,11 +21,12 @@ export default function ChatPage({ sessionId, onSummaryUpdate }) {
       },
     ]
   })
-  const [input, setInput] = useState('')
 
   useEffect(() => {
     localStorage.setItem(`chat_history_${sessionId}`, JSON.stringify(messages))
   }, [messages, sessionId])
+
+  const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [showUpload, setShowUpload] = useState(false)
   const [uploadForm, setUploadForm] = useState({ title: '', authors: '', year: '' })
@@ -48,7 +51,7 @@ export default function ChatPage({ sessionId, onSummaryUpdate }) {
     try {
       const res = await sendChat(sessionId, userMsg)
       addMessage('assistant', res.content, res.type, { papers: res.papers })
-      if (res.type === 'matrix') onSummaryUpdate?.()
+      if (res.type === 'matrix' || res.type === 'analyze') onSummaryUpdate?.()
     } catch (e) {
       addMessage('assistant', `⚠️ 發生錯誤：${e.message}`, 'error')
     } finally {

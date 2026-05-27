@@ -30,6 +30,7 @@ export default function App() {
   const [sessionId, setSessionId] = useState(getOrCreateSession)
   const [activePage, setActivePage] = useState('chat')
   const [conversations, setConversations] = useState(() => getSavedConversations(sessionId))
+  const [modelName, setModelName] = useState('gemma-4-26b-a4b-it')
 
   const switchConversation = (id) => {
     setSessionId(id)
@@ -58,6 +59,18 @@ export default function App() {
   const [roleForm, setRoleForm] = useState({ large: '', medium: '', small: '' })
   const [roleDesc, setRoleDesc] = useState('尚未設定研究方向')
   const [summaryKey, setSummaryKey] = useState(0)
+
+  // 載入模型名稱
+  useEffect(() => {
+    fetch('/health')
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.model) {
+          setModelName(data.model)
+        }
+      })
+      .catch(() => {})
+  }, [])
 
   // 載入角色狀態
   useEffect(() => {
@@ -102,7 +115,7 @@ export default function App() {
           <span className="logo-icon">🔬</span>
           <div>
             <h2>AI 研究助理</h2>
-            <p>gemini-2.5-flash</p>
+            <p>{modelName}</p>
           </div>
         </div>
 
@@ -162,7 +175,7 @@ export default function App() {
             <h1>{NAV_ITEMS.find(n => n.id === activePage)?.label}</h1>
           </div>
           <div className="header-badges">
-            <span className="badge badge-purple">Gemini 2.5 Flash</span>
+            <span className="badge badge-purple">{modelName}</span>
             <span className="badge badge-green">RAG 已啟用</span>
           </div>
         </header>

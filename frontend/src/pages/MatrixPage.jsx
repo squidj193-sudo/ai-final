@@ -5,9 +5,15 @@ import { sendChat } from '../api.js'
 import './MatrixPage.css'
 
 export default function MatrixPage({ sessionId }) {
-  const [matrix, setMatrix] = useState('')
+  const [matrix, setMatrix] = useState(() => localStorage.getItem(`matrix_${sessionId}`) || '')
   const [loading, setLoading] = useState(false)
-  const [generated, setGenerated] = useState(false)
+  const [generated, setGenerated] = useState(() => !!localStorage.getItem(`matrix_${sessionId}`))
+
+  useEffect(() => {
+    if (matrix && generated) {
+      localStorage.setItem(`matrix_${sessionId}`, matrix)
+    }
+  }, [matrix, generated, sessionId])
 
   const generateMatrix = async () => {
     setLoading(true)
