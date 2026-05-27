@@ -61,20 +61,29 @@ class SearchSkill:
         if year_range:
             params["year"] = year_range
 
+        import random
         async with httpx.AsyncClient(timeout=20) as client:
-            max_retries = 3
+            max_retries = 5
             for attempt in range(max_retries):
-                resp = await client.get(
-                    self.SEMANTIC_SCHOLAR_URL, params=params, headers=self.headers
-                )
                 try:
+                    resp = await client.get(
+                        self.SEMANTIC_SCHOLAR_URL, params=params, headers=self.headers
+                    )
                     resp.raise_for_status()
                     data = resp.json()
                     break
                 except httpx.HTTPStatusError as e:
                     if e.response.status_code == 429 and attempt < max_retries - 1:
                         import asyncio
-                        await asyncio.sleep(2 ** attempt)
+                        # Exponential backoff with jitter: 2, 4, 8, 16 seconds + random jitter
+                        sleep_time = (2 ** attempt) + random.uniform(0.5, 1.5)
+                        await asyncio.sleep(sleep_time)
+                        continue
+                    raise e
+                except (httpx.RequestError, Exception) as e:
+                    if attempt < max_retries - 1:
+                        import asyncio
+                        await asyncio.sleep(1 + attempt)
                         continue
                     raise e
 

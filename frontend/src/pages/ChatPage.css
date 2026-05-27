@@ -168,31 +168,64 @@
 /* ─── 建議問題樣式 ─── */
 .suggestions-container {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 8px;
-  margin-top: 8px;
+  margin-top: 12px;
   padding-left: 48px;
-  max-width: 720px;
+  max-width: 650px;
   width: 100%;
 }
 
 .suggestion-btn {
-  background: var(--bg-card);
-  border: 1px solid var(--border-subtle);
-  border-radius: 16px;
-  padding: 8px 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 10px 16px;
   font-size: 13px;
   color: var(--text-secondary);
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   text-align: left;
   outline: none;
+  animation: slideUp 0.3s ease-out both;
 }
+
+.suggestion-btn:nth-child(1) { animation-delay: 0.05s; }
+.suggestion-btn:nth-child(2) { animation-delay: 0.1s; }
+.suggestion-btn:nth-child(3) { animation-delay: 0.15s; }
 
 .suggestion-btn:hover {
-  background: var(--bg-hover);
+  background: rgba(255, 255, 255, 0.07);
   border-color: var(--accent-primary);
   color: var(--text-primary);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
+.suggestion-arrow {
+  opacity: 0;
+  transform: translateX(-4px);
+  transition: all 0.2s ease;
+  font-size: 14px;
+  color: var(--accent-primary);
+  margin-left: 8px;
+}
+
+.suggestion-btn:hover .suggestion-arrow {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

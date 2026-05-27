@@ -24,6 +24,17 @@ class RoleState(BaseModel):
             return self.large_direction
         return ""
 
+    def get_full_hierarchy_desc(self) -> str:
+        """回傳完整的研究方向層級描述"""
+        parts = []
+        if self.large_direction:
+            parts.append(self.large_direction)
+        if self.medium_direction:
+            parts.append(self.medium_direction)
+        if self.small_direction:
+            parts.append(self.small_direction)
+        return " > ".join(parts) if parts else "未設定"
+
     def get_level(self) -> str:
         if self.small_direction:
             return "小方向"

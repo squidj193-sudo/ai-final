@@ -122,7 +122,8 @@ export default function ChatPage({ sessionId, onSummaryUpdate }) {
               <div className="suggestions-container">
                 {msg.suggestions.map((sug, i) => (
                   <button key={i} className="suggestion-btn" onClick={() => handleSuggestionClick(sug)}>
-                    {sug}
+                    <span>{sug}</span>
+                    <span className="suggestion-arrow">➔</span>
                   </button>
                 ))}
               </div>
