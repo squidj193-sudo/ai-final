@@ -66,7 +66,7 @@ class AgentCore:
         self.analysis_skill = AnalysisSkill()
         self.matrix_skill = MatrixSkill()
         self.direction_skill = DirectionSkill()
-        self.rag_store = RAGStore(db_path=os.getenv("CHROMA_DB_PATH", "./data/chroma"))
+        self.rag_store = RAGStore(db_path=os.getenv("PAPERS_DB_PATH", "./data/papers"))
 
         # 儲存各 session 的摘要快取
         self._summaries: dict[str, list[PaperSummary]] = {}

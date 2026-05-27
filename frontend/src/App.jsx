@@ -97,9 +97,23 @@ export default function App() {
     }
   }
 
+  const refreshState = () => {
+    getRoleState(sessionId)
+      .then(d => {
+        setRoleDesc(d.description)
+        setRoleForm({
+          large: d.state.large_direction || '',
+          medium: d.state.medium_direction || '',
+          small: d.state.small_direction || '',
+        })
+      })
+      .catch(() => {})
+    setSummaryKey(k => k + 1)
+  }
+
   const renderPage = () => {
     switch (activePage) {
-      case 'chat':      return <ChatPage key={sessionId} sessionId={sessionId} onSummaryUpdate={() => setSummaryKey(k => k + 1)} />
+      case 'chat':      return <ChatPage key={sessionId} sessionId={sessionId} onStateUpdate={refreshState} />
       case 'summary':   return <SummaryPage key={summaryKey} sessionId={sessionId} />
       case 'matrix':    return <MatrixPage sessionId={sessionId} />
       case 'direction': return <DirectionPage sessionId={sessionId} />
