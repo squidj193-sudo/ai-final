@@ -30,7 +30,7 @@ def parse_pdf_to_markdown(file_path: str) -> str:
 from chromadb.api.types import Documents, Embeddings, EmbeddingFunction
 
 class GeminiEmbeddingFunction(EmbeddingFunction[Documents]):
-    def __init__(self, api_key: str, model_name: str = "models/embedding-001"):
+    def __init__(self, api_key: str, model_name: str = "models/gemini-embedding-001"):
         self.api_key = api_key
         self.model_name = model_name
 
@@ -113,7 +113,7 @@ class RAGStore:
         import google.generativeai as genai
 
         class CustomGoogleEmbeddingFunction(EmbeddingFunction):
-            def __init__(self, api_key: str, model_name: str = "models/embedding-001"):
+            def __init__(self, api_key: str, model_name: str = "models/gemini-embedding-001"):
                 genai.configure(api_key=api_key)
                 self.model_name = model_name
 

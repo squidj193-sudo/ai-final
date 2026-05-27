@@ -4,7 +4,7 @@ import remarkGfm from 'remark-gfm'
 import { sendChat, uploadPaper } from '../api.js'
 import './ChatPage.css'
 
-export default function ChatPage({ sessionId, onSummaryUpdate }) {
+export default function ChatPage({ sessionId, onStateUpdate }) {
   const [messages, setMessages] = useState(() => {
     const saved = localStorage.getItem(`chat_history_${sessionId}`)
     if (saved) {
@@ -47,7 +47,12 @@ export default function ChatPage({ sessionId, onSummaryUpdate }) {
     try {
       const res = await sendChat(sessionId, userMsg)
       addMessage('assistant', res.content, res.type, { papers: res.papers, suggestions: res.suggestions })
-      if (res.type === 'matrix' || res.type === 'analyze') onSummaryUpdate?.()
+      if (res.type === 'matrix') {
+        localStorage.setItem(`matrix_${sessionId}`, res.content)
+      } else if (res.type === 'direction') {
+        localStorage.setItem(`direction_${sessionId}`, res.content)
+      }
+      onStateUpdate?.()
     } catch (e) {
       addMessage('assistant', `⚠️ 發生錯誤：${e.message}`, 'error')
     } finally {
@@ -62,7 +67,12 @@ export default function ChatPage({ sessionId, onSummaryUpdate }) {
     try {
       const res = await sendChat(sessionId, sugText)
       addMessage('assistant', res.content, res.type, { papers: res.papers, suggestions: res.suggestions })
-      if (res.type === 'matrix' || res.type === 'analyze') onSummaryUpdate?.()
+      if (res.type === 'matrix') {
+        localStorage.setItem(`matrix_${sessionId}`, res.content)
+      } else if (res.type === 'direction') {
+        localStorage.setItem(`direction_${sessionId}`, res.content)
+      }
+      onStateUpdate?.()
     } catch (e) {
       addMessage('assistant', `⚠️ 發生錯誤：${e.message}`, 'error')
     } finally {
@@ -79,7 +89,7 @@ export default function ChatPage({ sessionId, onSummaryUpdate }) {
     try {
       const res = await uploadPaper(sessionId, uploadFile)
       addMessage('assistant', `✅ ${res.message}\n\n**摘要摘錄：**\n\n**研究目的：** ${res.summary.research_goal}\n\n**主要發現：** ${res.summary.main_findings}`, 'analyze')
-      onSummaryUpdate?.()
+      onStateUpdate?.()
     } catch (e) {
       addMessage('assistant', `⚠️ 上傳失敗：${e.message}`, 'error')
     } finally {

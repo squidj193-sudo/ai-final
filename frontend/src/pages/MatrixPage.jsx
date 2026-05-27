@@ -9,6 +9,14 @@ export default function MatrixPage({ sessionId }) {
   const [loading, setLoading] = useState(false)
   const [generated, setGenerated] = useState(() => !!localStorage.getItem(`matrix_${sessionId}`))
 
+  // Load from localStorage when sessionId changes
+  useEffect(() => {
+    const saved = localStorage.getItem(`matrix_${sessionId}`) || ''
+    setMatrix(saved)
+    setGenerated(!!saved)
+  }, [sessionId])
+
+  // Save to localStorage when matrix or generated state changes
   useEffect(() => {
     if (matrix && generated) {
       localStorage.setItem(`matrix_${sessionId}`, matrix)
