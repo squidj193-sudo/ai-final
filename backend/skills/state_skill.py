@@ -15,9 +15,14 @@ class RoleState(BaseModel):
         return not any([self.large_direction, self.medium_direction, self.small_direction])
 
     def get_search_context(self) -> str:
-        """回傳搜尋時使用的上下文字串"""
-        parts = [d for d in [self.large_direction, self.medium_direction, self.small_direction] if d]
-        return " > ".join(parts) if parts else ""
+        """回傳搜尋時使用的上下文字串（優先返回最細緻的方向）"""
+        if self.small_direction:
+            return self.small_direction
+        elif self.medium_direction:
+            return self.medium_direction
+        elif self.large_direction:
+            return self.large_direction
+        return ""
 
     def get_level(self) -> str:
         if self.small_direction:

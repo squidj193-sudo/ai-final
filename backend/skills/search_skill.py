@@ -25,6 +25,7 @@ class SearchSkill:
     def __init__(self, api_key: Optional[str] = None):
         self.api_key = api_key
         self.headers = {"x-api-key": api_key} if api_key and api_key.strip() else {}
+        self._cache = {}  # 查詢結果快取，避免觸發 429 限制
 
     async def search(
         self,
@@ -40,7 +41,17 @@ class SearchSkill:
         :param limit: 回傳論文數量上限
         :param year_range: 年份範圍，例如 "2020-2024"
         """
-        full_query = f"{context} {query}".strip() if context else query
+        # 去除重複的關鍵字
+        query_words = query.split()
+        context_words = context.split() if context else []
+        combined_words = []
+        for word in context_words + query_words:
+            if word not in combined_words:
+                combined_words.append(word)
+        full_query = " ".join(combined_words)
+        cache_key = (full_query, limit, year_range)
+        if cache_key in self._cache:
+            return self._cache[cache_key]
 
         params = {
             "query": full_query,
@@ -80,4 +91,5 @@ class SearchSkill:
                     doi=item.get("externalIds", {}).get("DOI"),
                 )
             )
+        self._cache[cache_key] = results
         return results

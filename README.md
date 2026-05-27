@@ -85,7 +85,10 @@ npm run dev
 
 ## 📚 文件
 
-- [PRD.md](./PRD.md) — 產品需求文件
-- [ARCHITECTURE.md](./ARCHITECTURE.md) — 系統架構說明
-- [MODELS.md](./MODELS.md) — 模型策略
-- [IMPLEMENTATION.md](./IMPLEMENTATION.md) — 技術實作路線圖
+- [PRD.md](file:///c:/Users/User/Downloads/1/ai-final/架構/PRD.md) — 產品需求文件
+- [ARCHITECTURE.md](file:///c:/Users/User/Downloads/1/ai-final/架構/ARCHITECTURE.md) — 系統架構說明
+- [MODELS.md](file:///c:/Users/User/Downloads/1/ai-final/架構/MODELS.md) — 模型策略
+- [IMPLEMENTATION.md](file:///c:/Users/User/Downloads/1/ai-final/架構/IMPLEMENTATION.md) — 技術實作路線圖
+- [KNOWLEDGE_GRAPH.md](file:///c:/Users/User/Downloads/1/ai-final/架構/KNOWLEDGE_GRAPH.md) — 知識圖譜說明
+- [DEVELOPER_AGENT_GUIDE.md](file:///c:/Users/User/Downloads/1/ai-final/DEVELOPER_AGENT_GUIDE.md) — AI Agent 接手開發指南
+- [AGENT_WORKFLOWS.md](file:///c:/Users/User/Downloads/1/ai-final/AGENT_WORKFLOWS.md) — AI Agent 運作與開發工作流
