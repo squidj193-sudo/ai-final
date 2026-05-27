@@ -8,6 +8,13 @@ export default function DirectionPage({ sessionId }) {
   const [report, setReport] = useState(() => localStorage.getItem(`direction_${sessionId}`) || '')
   const [loading, setLoading] = useState(false)
 
+  // Load from localStorage when sessionId changes
+  useEffect(() => {
+    const saved = localStorage.getItem(`direction_${sessionId}`) || ''
+    setReport(saved)
+  }, [sessionId])
+
+  // Save to localStorage when report state changes
   useEffect(() => {
     if (report && !report.startsWith('⚠️')) {
       localStorage.setItem(`direction_${sessionId}`, report)
