@@ -61,10 +61,12 @@ def health_check():
 
 @app.post("/api/chat")
 async def chat(req: ChatRequest):
+    import traceback
     try:
         result = await agent.chat(req.session_id, req.message)
         return result
     except Exception as e:
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -96,6 +98,8 @@ async def upload_paper(
         )
         return result
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         Path(tmp_path).unlink(missing_ok=True)
