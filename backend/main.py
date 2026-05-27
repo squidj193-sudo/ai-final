@@ -71,9 +71,6 @@ async def chat(req: ChatRequest):
 @app.post("/api/upload-paper")
 async def upload_paper(
     session_id: str = Form(...),
-    title: str = Form(...),
-    authors: str = Form(...),   # 以逗號分隔的作者列表
-    year: str = Form(None),
     file: UploadFile = File(...),
 ):
     if not file.filename.endswith(".pdf"):
@@ -86,13 +83,9 @@ async def upload_paper(
         tmp_path = tmp.name
 
     try:
-        author_list = [a.strip() for a in authors.split(",") if a.strip()]
         result = await agent.upload_paper(
             session_id=session_id,
             file_path=tmp_path,
-            title=title,
-            authors=author_list,
-            year=int(year) if year else None,
         )
         return result
     except Exception as e:

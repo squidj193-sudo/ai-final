@@ -124,7 +124,7 @@ class AgentCore:
             self._chat_sessions[session_id] = history[-20:]  # 保留最近 20 則
             return {"type": "chat", "content": reply}
 
-    async def upload_paper(self, session_id: str, file_path: str, title: str, authors: list[str], year=None) -> dict:
+    async def upload_paper(self, session_id: str, file_path: str) -> dict:
         """處理上傳的 PDF 論文"""
         import uuid
         paper_id = str(uuid.uuid4())[:8]
@@ -132,11 +132,11 @@ class AgentCore:
         # 1. 解析 PDF
         content = parse_pdf_to_markdown(file_path)
 
-        # 2. 存入 RAG
-        chunks = self.rag_store.add_document(paper_id, content, {"title": title, "year": year})
+        # 2. 生成摘要 (包含從內容中提取標題、作者、年份)
+        summary = await self.analysis_skill.summarize(paper_id, content)
 
-        # 3. 生成摘要
-        summary = await self.analysis_skill.summarize(paper_id, title, authors, year, content)
+        # 3. 存入 RAG
+        chunks = self.rag_store.add_document(paper_id, content, {"title": summary.title, "year": summary.year})
 
         # 4. 儲存摘要
         if session_id not in self._summaries:
@@ -147,7 +147,7 @@ class AgentCore:
             "paper_id": paper_id,
             "chunks": chunks,
             "summary": summary.model_dump(),
-            "message": f"論文「{title}」已解析完成，共切分為 {chunks} 個段落並存入知識庫。",
+            "message": f"論文「{summary.title}」已解析完成，共切分為 {chunks} 個段落並存入知識庫。",
         }
 
     def get_summaries(self, session_id: str) -> list[dict]:

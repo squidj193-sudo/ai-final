@@ -10,13 +10,10 @@ export async function sendChat(sessionId, message) {
   return res.json()
 }
 
-export async function uploadPaper(sessionId, file, title, authors, year) {
+export async function uploadPaper(sessionId, file) {
   const form = new FormData()
   form.append('session_id', sessionId)
   form.append('file', file)
-  form.append('title', title)
-  form.append('authors', authors)
-  if (year) form.append('year', String(year))
 
   const res = await fetch(`${BASE_URL}/upload-paper`, { method: 'POST', body: form })
   if (!res.ok) throw new Error(await res.text())

@@ -29,19 +29,55 @@ def parse_pdf_to_markdown(file_path: str) -> str:
 
 # ─── ChromaDB 向量儲存 ────────────────────────────────────────────────
 class CustomGeminiEmbeddingFunction(chromadb.EmbeddingFunction):
-    def __init__(self, api_key: str, model_name: str = "models/embedding-001"):
+    def __init__(self, api_key: str, model_name: str = "models/gemini-embedding-001"):
         import google.generativeai as genai
         genai.configure(api_key=api_key)
         self.model_name = model_name
 
     def __call__(self, input: chromadb.Documents) -> chromadb.Embeddings:
+        import time
+        import logging
         import google.generativeai as genai
-        res = genai.embed_content(
-            model=self.model_name,
-            content=input,
-            task_type="retrieval_document"
-        )
-        return res["embedding"]
+        from google.api_core import exceptions
+
+        logger = logging.getLogger(__name__)
+        batch_size = 10  # 降低批次大小，減少單次 API 請求量
+        embeddings = []
+
+        for i in range(0, len(input), batch_size):
+            batch = input[i : i + batch_size]
+            retries = 8
+            delay = 30.0  # 配合 API 建議的 30 秒重試間隔
+            for attempt in range(retries):
+                try:
+                    res = genai.embed_content(
+                        model=self.model_name,
+                        content=batch,
+                        task_type="retrieval_document"
+                    )
+                    embeddings.extend(res["embedding"])
+                    break
+                except exceptions.ResourceExhausted as e:
+                    if attempt == retries - 1:
+                        raise e
+                    logger.warning(f"Embedding 配額超限，第 {attempt+1} 次重試，等待 {delay:.0f} 秒...")
+                    time.sleep(delay)
+                    delay = min(delay * 1.5, 120)  # 最多等 120 秒
+                except Exception as e:
+                    if "429" in str(e) or "quota" in str(e).lower():
+                        if attempt == retries - 1:
+                            raise e
+                        logger.warning(f"Embedding 429 錯誤，第 {attempt+1} 次重試，等待 {delay:.0f} 秒...")
+                        time.sleep(delay)
+                        delay = min(delay * 1.5, 120)
+                    else:
+                        raise e
+            
+            # 批次之間稍作停頓，避免瞬時流量過高觸發限流
+            if i + batch_size < len(input):
+                time.sleep(2.0)
+
+        return embeddings
 
 class RAGStore:
     """管理論文向量索引與語意檢索"""
@@ -53,7 +89,7 @@ class RAGStore:
         self._client = chromadb.PersistentClient(path=db_path)
         # 使用 Google Generative AI Embeddings
         api_key = os.getenv("GEMINI_API_KEY", "")
-        ef = CustomGeminiEmbeddingFunction(api_key=api_key, model_name="models/embedding-001")
+        ef = CustomGeminiEmbeddingFunction(api_key=api_key, model_name="models/gemini-embedding-001")
         self._collection = self._client.get_or_create_collection(
             name=self.COLLECTION_NAME, embedding_function=ef
         )
@@ -63,8 +99,8 @@ class RAGStore:
         paper_id: str,
         content: str,
         metadata: Optional[dict] = None,
-        chunk_size: int = 1000,
-        overlap: int = 200,
+        chunk_size: int = 2000,
+        overlap: int = 300,
     ) -> int:
         """將文件切分後存入向量庫，回傳切分數量"""
         chunks = self._chunk_text(content, chunk_size, overlap)

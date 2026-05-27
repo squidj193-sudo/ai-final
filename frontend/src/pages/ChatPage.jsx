@@ -16,7 +16,6 @@ export default function ChatPage({ sessionId, onSummaryUpdate }) {
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [showUpload, setShowUpload] = useState(false)
-  const [uploadForm, setUploadForm] = useState({ title: '', authors: '', year: '' })
   const [uploadFile, setUploadFile] = useState(null)
   const bottomRef = useRef(null)
   const fileInputRef = useRef(null)
@@ -47,22 +46,18 @@ export default function ChatPage({ sessionId, onSummaryUpdate }) {
   }
 
   const handleUpload = async () => {
-    if (!uploadFile || !uploadForm.title) return
+    if (!uploadFile) return
     setLoading(true)
     setShowUpload(false)
-    addMessage('user', `📎 上傳論文：${uploadForm.title}`)
+    addMessage('user', `📎 上傳論文：${uploadFile.name}`)
     try {
-      const res = await uploadPaper(
-        sessionId, uploadFile,
-        uploadForm.title, uploadForm.authors, uploadForm.year
-      )
+      const res = await uploadPaper(sessionId, uploadFile)
       addMessage('assistant', `✅ ${res.message}\n\n**摘要摘錄：**\n\n**研究目的：** ${res.summary.research_goal}\n\n**主要發現：** ${res.summary.main_findings}`, 'analyze')
       onSummaryUpdate?.()
     } catch (e) {
       addMessage('assistant', `⚠️ 上傳失敗：${e.message}`, 'error')
     } finally {
       setLoading(false)
-      setUploadForm({ title: '', authors: '', year: '' })
       setUploadFile(null)
     }
   }
@@ -119,15 +114,6 @@ export default function ChatPage({ sessionId, onSummaryUpdate }) {
             <button className="btn-icon btn" onClick={() => setShowUpload(false)}>✕</button>
           </div>
           <div className="upload-form">
-            <label>論文標題 *
-              <input value={uploadForm.title} onChange={e => setUploadForm(p => ({ ...p, title: e.target.value }))} placeholder="例：A Review of Perovskite Solar Cells" />
-            </label>
-            <label>作者（以逗號分隔）
-              <input value={uploadForm.authors} onChange={e => setUploadForm(p => ({ ...p, authors: e.target.value }))} placeholder="例：Wang, Li, Chen" />
-            </label>
-            <label>年份
-              <input type="number" value={uploadForm.year} onChange={e => setUploadForm(p => ({ ...p, year: e.target.value }))} placeholder="例：2024" />
-            </label>
             <label className="file-input-label">
               {uploadFile ? `📄 ${uploadFile.name}` : '選擇 PDF 檔案'}
               <input ref={fileInputRef} type="file" accept=".pdf" style={{ display: 'none' }}
@@ -137,7 +123,7 @@ export default function ChatPage({ sessionId, onSummaryUpdate }) {
           </div>
           <div className="upload-actions">
             <button className="btn btn-ghost" onClick={() => setShowUpload(false)}>取消</button>
-            <button className="btn btn-primary" onClick={handleUpload} disabled={!uploadFile || !uploadForm.title}>
+            <button className="btn btn-primary" onClick={handleUpload} disabled={!uploadFile}>
               開始解析
             </button>
           </div>
