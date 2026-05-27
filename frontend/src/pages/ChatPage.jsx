@@ -46,7 +46,7 @@ export default function ChatPage({ sessionId, onSummaryUpdate }) {
     setLoading(true)
     try {
       const res = await sendChat(sessionId, userMsg)
-      addMessage('assistant', res.content, res.type, { papers: res.papers })
+      addMessage('assistant', res.content, res.type, { papers: res.papers, suggestions: res.suggestions })
       if (res.type === 'matrix' || res.type === 'analyze') onSummaryUpdate?.()
     } catch (e) {
       addMessage('assistant', `⚠️ 發生錯誤：${e.message}`, 'error')
@@ -54,6 +54,22 @@ export default function ChatPage({ sessionId, onSummaryUpdate }) {
       setLoading(false)
     }
   }
+
+  const handleSuggestionClick = async (sugText) => {
+    if (loading) return
+    addMessage('user', sugText)
+    setLoading(true)
+    try {
+      const res = await sendChat(sessionId, sugText)
+      addMessage('assistant', res.content, res.type, { papers: res.papers, suggestions: res.suggestions })
+      if (res.type === 'matrix' || res.type === 'analyze') onSummaryUpdate?.()
+    } catch (e) {
+      addMessage('assistant', `⚠️ 發生錯誤：${e.message}`, 'error')
+    } finally {
+      setLoading(false)
+    }
+  }
+
 
   const handleUpload = async () => {
     if (!uploadFile) return
@@ -81,25 +97,36 @@ export default function ChatPage({ sessionId, onSummaryUpdate }) {
     <div className="chat-page">
       {/* 訊息列表 */}
       <div className="messages-container">
-        {messages.map(msg => (
-          <div key={msg.id} className={`message message-${msg.role} fade-in`}>
-            {msg.role === 'assistant' && (
-              <div className="message-avatar">{getMessageIcon(msg.type)}</div>
-            )}
-            <div className={`message-bubble message-bubble-${msg.role}`}>
-              {msg.role === 'assistant' ? (
-                <div className="markdown-body">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
-                </div>
-              ) : (
-                <p>{msg.content}</p>
+        {messages.map((msg, index) => (
+          <div key={msg.id} className="message-wrapper" style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+            <div className={`message message-${msg.role} fade-in`}>
+              {msg.role === 'assistant' && (
+                <div className="message-avatar">{getMessageIcon(msg.type)}</div>
               )}
-              {msg.type !== 'chat' && msg.type !== 'error' && (
-                <span className={`message-type-badge badge badge-${msg.type === 'search' ? 'blue' : msg.type === 'matrix' ? 'purple' : 'green'}`}>
-                  {msg.type === 'search' ? '搜尋結果' : msg.type === 'matrix' ? '比較矩陣' : msg.type === 'analyze' ? '論文分析' : '方向建議'}
-                </span>
-              )}
+              <div className={`message-bubble message-bubble-${msg.role}`}>
+                {msg.role === 'assistant' ? (
+                  <div className="markdown-body">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
+                  </div>
+                ) : (
+                  <p>{msg.content}</p>
+                )}
+                {msg.type !== 'chat' && msg.type !== 'error' && (
+                  <span className={`message-type-badge badge badge-${msg.type === 'search' ? 'blue' : msg.type === 'matrix' ? 'purple' : 'green'}`}>
+                    {msg.type === 'search' ? '搜尋結果' : msg.type === 'matrix' ? '比較矩陣' : msg.type === 'analyze' ? '論文分析' : '方向建議'}
+                  </span>
+                )}
+              </div>
             </div>
+            {msg.role === 'assistant' && msg.suggestions && msg.suggestions.length > 0 && index === messages.length - 1 && (
+              <div className="suggestions-container">
+                {msg.suggestions.map((sug, i) => (
+                  <button key={i} className="suggestion-btn" onClick={() => handleSuggestionClick(sug)}>
+                    {sug}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         ))}
 

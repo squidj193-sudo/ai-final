@@ -57,17 +57,25 @@ class AnalysisSkill:
         content: str,
     ) -> PaperSummary:
         """對論文 Markdown 內容進行摘要與元數據提取"""
-        import json, asyncio
+        import json, asyncio, re
 
         prompt = SUMMARY_PROMPT.format(content=content[:8000])  # 截斷避免超出上下文
         response = await asyncio.to_thread(self._model.generate_content, prompt)
         raw = response.text.strip()
 
-        # 移除 markdown 程式碼區塊（如有）
-        if raw.startswith("```"):
-            raw = "\n".join(raw.split("\n")[1:-1])
+        # 魯棒解析 JSON 內容
+        match = re.search(r'```(?:json)?\s*(.*?)\s*```', raw, re.DOTALL | re.IGNORECASE)
+        if match:
+            candidate = match.group(1).strip()
+        else:
+            start = raw.find('{')
+            end = raw.rfind('}')
+            if start != -1 and end != -1:
+                candidate = raw[start:end+1].strip()
+            else:
+                candidate = raw.strip()
 
-        parsed = json.loads(raw)
+        parsed = json.loads(candidate)
         
         # 提取並過濾
         title = parsed.get("title", "未命名論文")
