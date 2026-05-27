@@ -95,6 +95,35 @@ class AgentCore:
                 result_text += "\n"
             return {"type": "search", "content": result_text, "papers": [p.model_dump() for p in papers]}
 
+        elif intent == "analyze":
+            import uuid
+            papers = await self.search_skill.search(query, context=role_context, limit=1)
+            if not papers:
+                return {"type": "chat", "content": f"找不到與「{query}」相關的論文可供分析。"}
+            
+            p = papers[0]
+            content = p.abstract or "無摘要"
+            paper_id = p.paper_id or str(uuid.uuid4())[:8]
+            
+            summary = await self.analysis_skill.summarize(
+                paper_id=paper_id,
+                title=p.title,
+                authors=p.authors,
+                year=p.year,
+                content=content,
+            )
+            
+            if session_id not in self._summaries:
+                self._summaries[session_id] = []
+            self._summaries[session_id].append(summary)
+            
+            result_text = f"✅ 已為您分析論文：**{p.title}**\n\n"
+            result_text += f"**研究目的：** {summary.research_goal}\n\n"
+            result_text += f"**主要發現：** {summary.main_findings}\n\n"
+            result_text += "*(摘要已自動存入「論文摘要」區)*"
+            
+            return {"type": "analyze", "content": result_text}
+
         elif intent == "matrix":
             summaries = self._summaries.get(session_id, [])
             if len(summaries) < 2:
