@@ -92,3 +92,13 @@ npm run dev
 - [KNOWLEDGE_GRAPH.md](file:///c:/Users/User/Downloads/1/ai-final/架構/KNOWLEDGE_GRAPH.md) — 知識圖譜說明
 - [DEVELOPER_AGENT_GUIDE.md](file:///c:/Users/User/Downloads/1/ai-final/DEVELOPER_AGENT_GUIDE.md) — AI Agent 接手開發指南
 - [AGENT_WORKFLOWS.md](file:///c:/Users/User/Downloads/1/ai-final/AGENT_WORKFLOWS.md) — AI Agent 運作與開發工作流
+
+<img width="1918" height="906" alt="image" src="https://github.com/user-attachments/assets/0a26255a-e99c-44f9-b7d3-e5322ad4eb3d" />
+
+<img width="1560" height="642" alt="image" src="https://github.com/user-attachments/assets/1b098ffd-8bc4-4e67-bec1-4e9979966110" />
+<img width="707" height="859" alt="image" src="https://github.com/user-attachments/assets/8d71a84d-bc9e-4e51-a2d8-95539aa8e59d" />
+<img width="623" height="539" alt="image" src="https://github.com/user-attachments/assets/fad82246-8315-4ffc-92fb-3455b48332e2" />
+<img width="636" height="628" alt="image" src="https://github.com/user-attachments/assets/968b8c04-b984-4cfb-872e-6ce43fbeaa84" />
+<img width="659" height="801" alt="image" src="https://github.com/user-attachments/assets/31b4d7e7-3f6a-4689-b5db-a2181909dec5" />
+<img width="1365" height="712" alt="image" src="https://github.com/user-attachments/assets/06e61a96-db73-4ea9-bc41-bf8b2617480f" />
+
