@@ -1,10 +1,8 @@
-"""
-AI 研究助理 Agent — 論文搜尋技能
-透過 Semantic Scholar API 搜尋學術論文
-"""
 import httpx
 from typing import Optional
 from pydantic import BaseModel
+from pathlib import Path
+import json
 
 
 class PaperResult(BaseModel):
@@ -22,10 +20,31 @@ class SearchSkill:
 
     SEMANTIC_SCHOLAR_URL = "https://api.semanticscholar.org/graph/v1/paper/search"
 
-    def __init__(self, api_key: Optional[str] = None):
+    def __init__(self, api_key: Optional[str] = None, cache_path: str = "./data/search_cache.json"):
         self.api_key = api_key
         self.headers = {"x-api-key": api_key} if api_key and api_key.strip() else {}
-        self._cache = {}  # 查詢結果快取，避免觸發 429 限制
+        self.cache_path = Path(cache_path)
+        self.cache_path.parent.mkdir(parents=True, exist_ok=True)
+        self._cache = {}  # 查詢結果本機快取
+        self._load_cache()
+
+    def _load_cache(self):
+        if self.cache_path.exists():
+            try:
+                data = json.loads(self.cache_path.read_text(encoding="utf-8"))
+                for k, v in data.items():
+                    self._cache[k] = [PaperResult(**p) for p in v]
+            except Exception:
+                pass
+
+    def _save_cache(self):
+        try:
+            data = {}
+            for k, v in self._cache.items():
+                data[k] = [p.model_dump() for p in v]
+            self.cache_path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        except Exception:
+            pass
 
     async def search(
         self,
@@ -49,7 +68,9 @@ class SearchSkill:
             if word not in combined_words:
                 combined_words.append(word)
         full_query = " ".join(combined_words)
-        cache_key = (full_query, limit, year_range)
+        
+        # 使用字串作為 JSON 快取的鍵
+        cache_key = f"{full_query}__limit_{limit}__year_{year_range or 'all'}"
         if cache_key in self._cache:
             return self._cache[cache_key]
 
@@ -62,8 +83,10 @@ class SearchSkill:
             params["year"] = year_range
 
         import random
-        async with httpx.AsyncClient(timeout=20) as client:
-            max_retries = 5
+        data = None
+        last_error = None
+        async with httpx.AsyncClient(timeout=15) as client:
+            max_retries = 3  # 適度減少最大重試次數，防止超長延遲
             for attempt in range(max_retries):
                 try:
                     resp = await client.get(
@@ -73,25 +96,35 @@ class SearchSkill:
                     data = resp.json()
                     break
                 except httpx.HTTPStatusError as e:
+                    last_error = e
                     if e.response.status_code == 429 and attempt < max_retries - 1:
                         import asyncio
-                        # Exponential backoff with jitter: 2, 4, 8, 16 seconds + random jitter
-                        sleep_time = (2 ** attempt) + random.uniform(0.5, 1.5)
+                        # Exponential backoff: 1s, 2s, 4s
+                        sleep_time = (2 ** attempt) + random.uniform(0.1, 0.5)
                         await asyncio.sleep(sleep_time)
                         continue
-                    raise e
                 except (httpx.RequestError, Exception) as e:
+                    last_error = e
                     if attempt < max_retries - 1:
                         import asyncio
                         await asyncio.sleep(1 + attempt)
                         continue
-                    raise e
+
+        # 若 API 完全超時或回報 429 失敗，嘗試回傳本機相似快取（備用方案）
+        if data is None:
+            # 尋找包含部分關鍵字的快取
+            for k, val in self._cache.items():
+                if full_query.lower() in k.lower():
+                    return val
+            if last_error:
+                raise last_error
+            raise RuntimeError("無法連線至文獻搜尋 API，且無本地快取資料。")
 
         results = []
         for item in data.get("data", []):
             results.append(
                 PaperResult(
-                    paper_id=item.get("paperId", ""),
+                    paper_id=item.get("paperId", "") or "",
                     title=item.get("title", "（無標題）"),
                     authors=[a.get("name", "") for a in item.get("authors", [])],
                     year=item.get("year"),
@@ -101,4 +134,52 @@ class SearchSkill:
                 )
             )
         self._cache[cache_key] = results
+        self._save_cache()
         return results
+
+    async def fetch_paper_by_id_or_url(self, query: str) -> Optional[PaperResult]:
+        """
+        根據 DOI 或 URL 直接向 Semantic Scholar 獲取論文資料。
+        """
+        import re
+        import urllib.parse
+        
+        # 嘗試提取 DOI
+        doi_match = re.search(r'(10\.\d{4,9}/[-._;()/:a-zA-Z0-9]+)', query)
+        
+        paper_id = None
+        if doi_match:
+            paper_id = f"DOI:{doi_match.group(1)}"
+        elif query.strip().startswith("http://") or query.strip().startswith("https://"):
+            paper_id = f"URL:{query.strip()}"
+        
+        if not paper_id:
+            return None
+
+        # 呼叫 Semantic Scholar Single Paper API
+        url = f"https://api.semanticscholar.org/graph/v1/paper/{urllib.parse.quote(paper_id)}"
+        params = {
+            "fields": "paperId,title,authors,year,abstract,externalIds,url",
+        }
+        
+        async with httpx.AsyncClient(timeout=15) as client:
+            try:
+                resp = await client.get(url, params=params, headers=self.headers)
+                if resp.status_code == 200:
+                    item = resp.json()
+                    return PaperResult(
+                        paper_id=item.get("paperId", "") or "",
+                        title=item.get("title", "（無標題）"),
+                        authors=[a.get("name", "") for a in item.get("authors", [])],
+                        year=item.get("year"),
+                        abstract=item.get("abstract"),
+                        url=item.get("url"),
+                        doi=item.get("externalIds", {}).get("DOI"),
+                    )
+            except Exception as e:
+                import logging
+                logger = logging.getLogger("search_skill")
+                logger.warning(f"Failed to fetch paper by id/url '{paper_id}': {e}")
+        return None
+
+

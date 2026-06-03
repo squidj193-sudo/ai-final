@@ -20,13 +20,16 @@ class PaperSummary(BaseModel):
     keywords: list[str]      # 關鍵字
 
 
-SUMMARY_PROMPT = """你是一位學術研究助理。請根據以下論文內容，以**繁體中文**生成一份結構化摘要。
+SUMMARY_PROMPT = """你是一位學術研究助理。請根據以下論文內容，以**繁體中文**生成一份結構化摘要。同時，請自動從論文中提取出論文的標題、作者列表與發表年份。
 
 論文內容：
 {content}
 
 請嚴格依照以下 JSON 格式回覆，不要加入其他文字：
 {{
+  "title": "論文的英文或中文完整標題/名稱",
+  "authors": ["第一作者姓名", "第二作者姓名", ...],
+  "year": 發表年份（數字，例如 2024；若在論文中完全找不到年份，請填 null）,
   "research_goal": "研究目的（1-2 句）",
   "methodology": "研究方法（1-2 句）",
   "main_findings": "主要發現（2-3 句）",
@@ -51,12 +54,12 @@ class AnalysisSkill:
     async def summarize(
         self,
         paper_id: str,
-        title: str,
-        authors: list[str],
+        title: Optional[str],
+        authors: Optional[list[str]],
         year: Optional[int],
         content: str,
     ) -> PaperSummary:
-        """對論文 Markdown 內容進行摘要"""
+        """對論文 Markdown 內容進行摘要與元數據提取"""
         import json, asyncio, re
 
         prompt = SUMMARY_PROMPT.format(content=content[:8000])  # 截斷避免超出上下文
@@ -76,10 +79,36 @@ class AnalysisSkill:
                 candidate = raw.strip()
 
         parsed = json.loads(candidate)
+        
+        # 決定最終使用的元數據（若使用者有提供則以使用者優先，否則用 AI 提取結果）
+        final_title = title if title and title.strip() else parsed.get("title", "未命名論文")
+        final_authors = authors if authors and len(authors) > 0 and any(a.strip() for a in authors) else parsed.get("authors", [])
+        
+        # 確保作者是一個 list[str]
+        if isinstance(final_authors, str):
+            final_authors = [a.strip() for a in final_authors.split(",") if a.strip()]
+        
+        final_year = year if year is not None else parsed.get("year")
+        if isinstance(final_year, str):
+            try:
+                final_year = int(final_year)
+            except ValueError:
+                final_year = None
+
+        # 移除 JSON 中的元數據鍵以避免重複解包
+        summary_data = {
+            "research_goal": parsed.get("research_goal") or "",
+            "methodology": parsed.get("methodology") or "",
+            "main_findings": parsed.get("main_findings") or "",
+            "limitations": parsed.get("limitations") or "",
+            "keywords": parsed.get("keywords") or [],
+        }
+
         return PaperSummary(
             paper_id=paper_id,
-            title=title,
-            authors=authors,
-            year=year,
-            **parsed,
+            title=final_title,
+            authors=final_authors,
+            year=final_year,
+            **summary_data,
         )
+

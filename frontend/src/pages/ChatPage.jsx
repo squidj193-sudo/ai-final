@@ -1,30 +1,69 @@
 import { useState, useRef, useEffect } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { sendChat, uploadPaper } from '../api.js'
+import { sendChat, uploadPaper, getChatHistory, saveChatHistory } from '../api.js'
 import './ChatPage.css'
 
 export default function ChatPage({ sessionId, onStateUpdate }) {
-  const [messages, setMessages] = useState(() => {
-    try {
-      const saved = localStorage.getItem(`chat_history_${sessionId}`)
-      if (saved) return JSON.parse(saved)
-    } catch (e) {
-      console.error(e)
-    }
-    return [
-      {
-        id: 1,
-        role: 'assistant',
-        content: '您好！我是 AI 研究助理 🔬\n\n您可以：\n- 輸入關鍵字搜尋論文（例：perovskite solar cell）\n- 上傳 PDF 論文進行分析\n- 輸入「生成比較矩陣」整合已分析的論文\n- 輸入「分析研究方向」獲取可行研究建議\n\n請問您想如何開始？',
-        type: 'chat',
-      },
-    ]
-  })
+  const [messages, setMessages] = useState([])
+  const [historyLoading, setHistoryLoading] = useState(true)
 
+  // 載入歷史對話紀錄
   useEffect(() => {
+    let active = true
+    const loadHistory = async () => {
+      if (!sessionId) return
+      setHistoryLoading(true)
+      try {
+        const data = await getChatHistory(sessionId)
+        if (active) {
+          if (data && data.history && data.history.length > 0) {
+            setMessages(data.history)
+          } else {
+            const defaultMsg = [
+              {
+                id: 1,
+                role: 'assistant',
+                content: '您好！我是 AI 研究助理 🔬\n\n您可以：\n- 輸入關鍵字搜尋論文（例：perovskite solar cell）\n- 上傳 PDF 論文進行分析\n- 輸入「生成比較矩陣」整合已分析的論文\n- 輸入「分析研究方向」獲取可行研究建議\n\n請問您想如何開始？',
+                type: 'chat',
+              }
+            ]
+            setMessages(defaultMsg)
+            await saveChatHistory(sessionId, defaultMsg)
+          }
+        }
+      } catch (e) {
+        console.error("Failed to load chat history from backend:", e)
+        if (active) {
+          const saved = localStorage.getItem(`chat_history_${sessionId}`)
+          if (saved) {
+            setMessages(JSON.parse(saved))
+          } else {
+            setMessages([
+              {
+                id: 1,
+                role: 'assistant',
+                content: '您好！我是 AI 研究助理 🔬\n\n您可以：\n- 輸入關鍵字搜尋論文（例：perovskite solar cell）\n- 上傳 PDF 論文進行分析\n- 輸入「生成比較矩陣」整合已分析的論文\n- 輸入「分析研究方向」獲取可行研究建議\n\n請問您想如何開始？',
+                type: 'chat',
+              }
+            ])
+          }
+        }
+      } finally {
+        if (active) setHistoryLoading(false)
+      }
+    }
+    loadHistory()
+    return () => { active = false }
+  }, [sessionId])
+
+  // 自動同步訊息至後端與 localStorage
+  useEffect(() => {
+    if (!sessionId || messages.length === 0 || historyLoading) return
     localStorage.setItem(`chat_history_${sessionId}`, JSON.stringify(messages))
-  }, [messages, sessionId])
+    saveChatHistory(sessionId, messages).catch(console.error)
+  }, [messages, sessionId, historyLoading])
+
 
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
@@ -58,7 +97,7 @@ export default function ChatPage({ sessionId, onStateUpdate }) {
       }
       onStateUpdate?.()
     } catch (e) {
-      addMessage('assistant', `⚠️ 發生錯誤：${e.message}`, 'error')
+      addMessage('assistant', `⚠️ 發生錯誤：${e.message}`, 'error', { suggestions: ["如何更換 API Key？", "為什麼會出現 429 錯誤？"] })
     } finally {
       setLoading(false)
     }
@@ -78,7 +117,7 @@ export default function ChatPage({ sessionId, onStateUpdate }) {
       }
       onStateUpdate?.()
     } catch (e) {
-      addMessage('assistant', `⚠️ 發生錯誤：${e.message}`, 'error')
+      addMessage('assistant', `⚠️ 發生錯誤：${e.message}`, 'error', { suggestions: ["如何更換 API Key？", "重試對話"] })
     } finally {
       setLoading(false)
     }
@@ -86,19 +125,20 @@ export default function ChatPage({ sessionId, onStateUpdate }) {
 
 
   const handleUpload = async () => {
-    if (!uploadFile || !uploadForm.title) return
+    if (!uploadFile) return
     setLoading(true)
     setShowUpload(false)
-    addMessage('user', `📎 上傳論文：${uploadForm.title}`)
+    const displayName = uploadForm.title.trim() || uploadFile.name
+    addMessage('user', `📎 上傳論文：${displayName}`)
     try {
       const res = await uploadPaper(
         sessionId, uploadFile,
         uploadForm.title, uploadForm.authors, uploadForm.year
       )
-      addMessage('assistant', `✅ ${res.message}\n\n**摘要摘錄：**\n\n**研究目的：** ${res.summary.research_goal}\n\n**主要發現：** ${res.summary.main_findings}`, 'analyze')
+      addMessage('assistant', `✅ ${res.message}\n\n**摘要摘錄：**\n\n**研究目的：** ${res.summary.research_goal}\n\n**主要發現：** ${res.summary.main_findings}`, 'analyze', { suggestions: ["生成比較矩陣", "分析研究方向"] })
       onStateUpdate?.()
     } catch (e) {
-      addMessage('assistant', `⚠️ 上傳失敗：${e.message}`, 'error')
+      addMessage('assistant', `⚠️ 上傳失敗：${e.message}`, 'error', { suggestions: ["如何安裝 PDF 依賴？", "如何更換 API Key？"] })
     } finally {
       setLoading(false)
       setUploadForm({ title: '', authors: '', year: '' })
@@ -170,13 +210,13 @@ export default function ChatPage({ sessionId, onStateUpdate }) {
             <button className="btn-icon btn" onClick={() => setShowUpload(false)}>✕</button>
           </div>
           <div className="upload-form">
-            <label>論文標題 *
-              <input value={uploadForm.title} onChange={e => setUploadForm(p => ({ ...p, title: e.target.value }))} placeholder="例：A Review of Perovskite Solar Cells" />
+            <label>論文標題 (選填)
+              <input value={uploadForm.title} onChange={e => setUploadForm(p => ({ ...p, title: e.target.value }))} placeholder="未填寫將由 AI 自動從內容提取" />
             </label>
-            <label>作者（以逗號分隔）
+            <label>作者（以逗號分隔，選填）
               <input value={uploadForm.authors} onChange={e => setUploadForm(p => ({ ...p, authors: e.target.value }))} placeholder="例：Wang, Li, Chen" />
             </label>
-            <label>年份
+            <label>年份 (選填)
               <input type="number" value={uploadForm.year} onChange={e => setUploadForm(p => ({ ...p, year: e.target.value }))} placeholder="例：2024" />
             </label>
             <label className="file-input-label">
@@ -188,7 +228,7 @@ export default function ChatPage({ sessionId, onStateUpdate }) {
           </div>
           <div className="upload-actions">
             <button className="btn btn-ghost" onClick={() => setShowUpload(false)}>取消</button>
-            <button className="btn btn-primary" onClick={handleUpload} disabled={!uploadFile || !uploadForm.title}>
+            <button className="btn btn-primary" onClick={handleUpload} disabled={!uploadFile}>
               開始解析
             </button>
           </div>
