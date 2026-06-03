@@ -29,7 +29,7 @@
 - **目標**：讓 Agent 能提供策略性的研究洞察。
 - **任務**：
     1. 實作`方向分析 Skill`，偵測比較矩陣中的研究缺口。
-    2. 針對 `gemini-2.5-flash` 精煉 Prompt Engineering，生成高品質的研究建議。
+    2. 針對 `gemma-4-26b-a4b-it` 精煉 Prompt Engineering，生成高品質的研究建議。
     3. 實作報告生成與匯出（Markdown）功能。
 
 ## 第五階段：精煉與部署（第 4 週以後）
@@ -41,7 +41,7 @@
     4. 為期末 Demo 做準備（情境 1-4）。
 
 ## 主要依賴套件
-- **LLM SDK**：`google-generativeai`（用於 Gemini 2.5 Flash）。
+- **LLM SDK**：`google-generativeai`（用於 Gemma 4 26B）。
 - **PDF 解析**：`markitdown`。
 - **向量資料庫**：`chromadb`。
 - **Web 框架**：Vite + React（前端）、FastAPI（後端）。
@@ -50,7 +50,7 @@
 ## 程式碼範例：技能介面模式（Python）
 ```python
 class BaseSkill:
-    def __init__(self, model_name="gemini-2.5-flash"):
+    def __init__(self, model_name="gemma-4-26b-a4b-it"):
         self.model = model_name
 
     async def execute(self, task_input: dict) -> dict:
@@ -58,7 +58,7 @@ class BaseSkill:
 
 class SearchSkill(BaseSkill):
     async def execute(self, query: str, context: dict) -> list:
-        # 1. 使用 gemini-2.5-flash 提取關鍵字
+        # 1. 使用 gemma-4-26b-a4b-it 提取關鍵字
         # 2. 呼叫學術 API
         # 3. 格式化並回傳結果
         pass

@@ -54,40 +54,32 @@ ai-final/
 
 ---
 
-## ⚠️ 已知問題與修復指引 (對照問題.md)
+## ✅ 已解決問題與實作說明 (對照問題.md)
 
-接手 Agent 請優先關注 [問題.md](file:///c:/Users/User/Downloads/1/ai-final/%E5%95%8F%E9%A1%8C.md) 的錯誤，以下是其在程式碼中的對照與修改提示：
+以下為 [問題.md](file:///c:/Users/User/Downloads/1/ai-final/%E5%95%8F%E9%A1%8C.md) 中列出的五大問題之具體實作與修復方式：
 
 ### 1. PDF 上傳遭遇 `MissingDependencyException` (PdfConverter 錯誤)
-*   **發生點**：上傳 PDF 時，於 [rag.py](file:///c:/Users/User/Downloads/1/ai-final/backend/tools/rag.py#L22) 中執行 `parse_pdf_to_markdown` 時發生。
-*   **修復方法**：這屬於執行環境依賴問題。需在虛擬環境中執行：
+*   **修復說明**：此為環境依賴缺失。已在 [agent_core.py](file:///c:/Users/User/Downloads/1/ai-final/backend/agent_core.py) 捕獲此異常，若偵測到相依性問題，會向前端拋出友善說明引導使用者於虛擬環境中手動執行：
     ```powershell
     pip install markitdown[pdf]
-    # 或
-    pip install markitdown[all]
     ```
 
 ### 2. Semantic Scholar 搜尋 429 速率限制 (Client error '429')
-*   **發生點**：[search_skill.py](file:///c:/Users/User/Downloads/1/ai-final/backend/skills/search_skill.py#L63) 中的 HTTP 請求。
-*   **修復方法**：
-    *   檢查 `backend/.env` 是否已設定 `SEMANTIC_SCHOLAR_API_KEY`。
-    *   若無 API Key，請調整檢索頻率，或是加入更彈性的快取機制 (Caching)。
+*   **修復說明**：
+    *   在 [search_skill.py](file:///c:/Users/User/Downloads/1/ai-final/backend/skills/search_skill.py) 內實作了本機 JSON 快取（`./data/search_cache.json`）的載入與儲存機制。
+    *   當遇到 429 或超時連線失敗時，系統會自動在已快取的資料中模糊搜尋包含部分關鍵字的歷史文獻，作為優雅降級的備用方案。
+    *   優化指數退避重試時間（調整為 1s、2s、4s 並加上抖動），兼顧效能與 API 呼叫安全。
 
 ### 3. Gemini 403 API Key Leaked / Invalid
-*   **發生點**：[agent_core.py](file:///c:/Users/User/Downloads/1/ai-final/backend/agent_core.py#L54) 初始化 Google Generative AI。
-*   **修復方法**：提示使用者更換 `backend/.env` 中的 `GEMINI_API_KEY`。
+*   **修復說明**：已在 [agent_core.py](file:///c:/Users/User/Downloads/1/ai-final/backend/agent_core.py) 捕獲 Google Generative AI 的 `Forbidden` (403) 與 `GoogleAPICallError` 異常。若 API Key 失效或被判洩漏，系統會回傳具體的引導提示，指引用戶於 `backend/.env` 進行密鑰更換。
 
 ### 4. 對話偏離主題 (AI 迷失人設)
-*   **問題描述**：在 ChatPage 中進行一般問答時，Agent 未將使用者的研究方向作為首要上下文。
-*   **修復建議**：
-    *   調整 [agent_core.py](file:///c:/Users/User/Downloads/1/ai-final/backend/agent_core.py#L18) 中的 `SYSTEM_PROMPT`。
-    *   在 [agent_core.py](file:///c:/Users/User/Downloads/1/ai-final/backend/agent_core.py#L235) 一般對話的分支中，確保把 `role_context` 強烈注入到 system instruction 或每一則 message 的 prefix 中，強制約束 LLM 的回答範圍。
+*   **修復說明**：在 [agent_core.py](file:///c:/Users/User/Downloads/1/ai-final/backend/agent_core.py) 內的一般對話分支中，調整並加強了對 `SYSTEM_PROMPT` 中研究方向角色上下文（`role_context`）的傳入。保證 LLM 每次產生回應時都具備明確的研究助理角色邊界。
 
 ### 5. 仿照 GPT 提供建議對話 (Follow-up Questions)
-*   **需求**：回覆完成後，於對話卡片下方多渲染 3 個建議後續問題。
-*   **修復建議**：
-    *   **後端修改**：在 [agent_core.py](file:///c:/Users/User/Downloads/1/ai-final/backend/agent_core.py) 的 `chat` 回傳 JSON 中增加一個 `suggestions: list[str]` 欄位，利用 Gemini 產生與當前上下文相關的 3 個追問問題。
-    *   **前端修改**：修改 `frontend/src/pages/ChatPage.jsx` 以渲染這些 `suggestions` 按鈕，並於點擊時自動發送該問題。
+*   **修復說明**：
+    *   **後端**：在 [agent_core.py](file:///c:/Users/User/Downloads/1/ai-final/backend/agent_core.py) 中的 `_generate_suggestions` 函式中，新增由 LLM 分析上下文自動生成 3 個關聯追問問題的邏輯，並透過 API `suggestions` 欄位回傳。
+    *   **前端**：修改 [ChatPage.jsx](file:///c:/Users/User/Downloads/1/ai-final/frontend/src/pages/ChatPage.jsx)，取得 `suggestions` 後動態繪製對話框底部的快速建議追問按鈕，點擊後會自動填入並送出。
 
 ---
 
@@ -111,3 +103,14 @@ npm install
 npm run dev
 ```
 前端介面預設會開啟在 `http://localhost:5173`。
+
+---
+
+## 📝 3. 強制工作進度記錄與交接規範 (Mandatory Logging & Handoff)
+
+為了避免工作進度因中斷或切換 Agent 而遺失，所有接手開發的 Coding Agent **必須**遵守以下交接規範：
+
+1.  **即時更新開發日誌**：每次解決 Bug、更新設定或新增功能後，應立即前往 [開發日誌.md](file:///c:/Users/User/Downloads/1/ai-final/%E9%96%8B%E7%99%BC%E6%97%A5%E8%AA%8C.md) 新增或調整記錄。
+2.  **明確列出下一步計畫**：在 [開發日誌.md](file:///c:/Users/User/Downloads/1/ai-final/%E9%96%8B%E7%99%BC%E6%97%A5%E8%AA%8C.md) 的「待辦與下一步」段落中，更新已完成事項，並羅列未完成事項之優先順序，以便下一個 Agent 能立刻接軌。
+3.  **嚴格保護約定配置**：例如核心模型指定使用 `gemma-4-26b-a4b-it`。非經使用者明確指示，不得更換 `.env`、`MODELS.md` 中規定的系統模型。若有任何模型更動，必須於開發日誌特別標記原因。
+

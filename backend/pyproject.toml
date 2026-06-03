@@ -1,0 +1,24 @@
+[tool.ruff]
+target-version = "py311"
+line-length = 120
+exclude = [
+    ".git",
+    "__pycache__",
+    "venv",
+    ".venv",
+    "data",
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+ignore = []
+
+[tool.mypy]
+python_version = "3.11"
+exclude = [
+    "venv",
+    ".venv",
+    "data",
+]
+ignore_missing_imports = true
+strict = false

@@ -107,7 +107,7 @@
 |---------|---------|--------------|
 | KG-20 | 識別圖譜中的「橋梁論文」（高中介中心性） | NetworkX 圖算法 |
 | KG-21 | 自動標記主題群集（社群偵測） | Louvain / Leiden 演算法 |
-| KG-22 | 生成圖譜摘要報告（文字說明關鍵論文與研究脈絡） | Gemini 2.5 Flash |
+| KG-22 | 生成圖譜摘要報告（文字說明關鍵論文與研究脈絡） | Gemma 4 26B (gemma-4-26b-a4b-it) |
 | KG-23 | 識別「知識空白區域」（孤立節點 / 未連通子圖） | 圖結構分析 |
 
 ### 3.4 匯出
@@ -195,7 +195,7 @@ sequenceDiagram
     participant API as FastAPI 後端
     participant GS as GraphSkill
     participant SS as Semantic Scholar API
-    participant GE as Gemini 2.5 Flash
+    participant GE as Gemma 4 26B (gemma-4-26b-a4b-it)
 
     U->>FE: 進入圖譜頁面
     FE->>API: GET /api/graph

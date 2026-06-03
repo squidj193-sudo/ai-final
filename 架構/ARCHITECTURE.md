@@ -63,7 +63,7 @@ RAG 管道是確保分析準確性的關鍵：
 3. **檢索**：在分析與比較階段，擷取相關上下文以為 LLM 的回應提供依據。
 
 ## 3. 技術棧
-- **LLM**：Gemini 2.5 Flash。
+- **LLM**：Gemma 4 26B (gemma-4-26b-a4b-it)。
 - **文件解析**：MarkItDown。
 - **搜尋 API**：Semantic Scholar、arXiv API。
 - **向量儲存**：ChromaDB / FAISS。

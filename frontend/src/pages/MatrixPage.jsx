@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { sendChat } from '../api.js'
+import { sendChat, getMatrix, setMatrix as apiSetMatrix } from '../api.js'
 import './MatrixPage.css'
 
 export default function MatrixPage({ sessionId }) {
@@ -9,19 +9,40 @@ export default function MatrixPage({ sessionId }) {
   const [loading, setLoading] = useState(false)
   const [generated, setGenerated] = useState(() => !!localStorage.getItem(`matrix_${sessionId}`))
 
-  // Load from localStorage when sessionId changes
+  // Load from backend (or fallback to localStorage) when sessionId changes
   useEffect(() => {
-    const saved = localStorage.getItem(`matrix_${sessionId}`) || ''
-    setMatrix(saved)
-    setGenerated(!!saved)
-  }, [sessionId])
-
-  // Save to localStorage when matrix or generated state changes
-  useEffect(() => {
-    if (matrix && generated) {
-      localStorage.setItem(`matrix_${sessionId}`, matrix)
+    let active = true
+    const loadMatrix = async () => {
+      try {
+        const data = await getMatrix(sessionId)
+        if (active) {
+          if (data && data.matrix) {
+            setMatrix(data.matrix)
+            setGenerated(true)
+            localStorage.setItem(`matrix_${sessionId}`, data.matrix)
+          } else {
+            // fallback to local storage
+            const saved = localStorage.getItem(`matrix_${sessionId}`) || ''
+            setMatrix(saved)
+            setGenerated(!!saved)
+            if (saved) {
+              // sync fallback to backend
+              await apiSetMatrix(sessionId, saved)
+            }
+          }
+        }
+      } catch (e) {
+        console.error("Failed to load matrix from backend", e)
+        if (active) {
+          const saved = localStorage.getItem(`matrix_${sessionId}`) || ''
+          setMatrix(saved)
+          setGenerated(!!saved)
+        }
+      }
     }
-  }, [matrix, generated, sessionId])
+    loadMatrix()
+    return () => { active = false }
+  }, [sessionId])
 
   const generateMatrix = async () => {
     setLoading(true)
@@ -30,6 +51,8 @@ export default function MatrixPage({ sessionId }) {
       if (res.type === 'matrix') {
         setMatrix(res.content)
         setGenerated(true)
+        localStorage.setItem(`matrix_${sessionId}`, res.content)
+        await apiSetMatrix(sessionId, res.content)
       } else {
         setMatrix(res.content)
         setGenerated(false)

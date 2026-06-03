@@ -1,31 +1,52 @@
 import { useState, useEffect } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { sendChat } from '../api.js'
+import { sendChat, getDirection, setDirection as apiSetDirection } from '../api.js'
 import './DirectionPage.css'
 
 export default function DirectionPage({ sessionId }) {
   const [report, setReport] = useState(() => localStorage.getItem(`direction_${sessionId}`) || '')
   const [loading, setLoading] = useState(false)
 
-  // Load from localStorage when sessionId changes
+  // Load from backend (or fallback to localStorage) when sessionId changes
   useEffect(() => {
-    const saved = localStorage.getItem(`direction_${sessionId}`) || ''
-    setReport(saved)
-  }, [sessionId])
-
-  // Save to localStorage when report state changes
-  useEffect(() => {
-    if (report && !report.startsWith('⚠️')) {
-      localStorage.setItem(`direction_${sessionId}`, report)
+    let active = true
+    const loadDirection = async () => {
+      try {
+        const data = await getDirection(sessionId)
+        if (active) {
+          if (data && data.direction) {
+            setReport(data.direction)
+            localStorage.setItem(`direction_${sessionId}`, data.direction)
+          } else {
+            // fallback to local storage
+            const saved = localStorage.getItem(`direction_${sessionId}`) || ''
+            setReport(saved)
+            if (saved) {
+              // sync fallback to backend
+              await apiSetDirection(sessionId, saved)
+            }
+          }
+        }
+      } catch (e) {
+        console.error("Failed to load direction from backend", e)
+        if (active) {
+          const saved = localStorage.getItem(`direction_${sessionId}`) || ''
+          setReport(saved)
+        }
+      }
     }
-  }, [report, sessionId])
+    loadDirection()
+    return () => { active = false }
+  }, [sessionId])
 
   const analyze = async () => {
     setLoading(true)
     try {
       const res = await sendChat(sessionId, '分析研究方向')
       setReport(res.content)
+      localStorage.setItem(`direction_${sessionId}`, res.content)
+      await apiSetDirection(sessionId, res.content)
     } catch (e) {
       setReport(`⚠️ 發生錯誤：${e.message}`)
     } finally {

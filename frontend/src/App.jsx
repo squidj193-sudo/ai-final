@@ -3,7 +3,7 @@ import ChatPage from './pages/ChatPage.jsx'
 import SummaryPage from './pages/SummaryPage.jsx'
 import MatrixPage from './pages/MatrixPage.jsx'
 import DirectionPage from './pages/DirectionPage.jsx'
-import { updateRoleState, getRoleState } from './api.js'
+import { updateRoleState, getRoleState, getConversations, saveConversations } from './api.js'
 import { v4 as uuidv4 } from 'uuid'
 import './App.css'
 
@@ -14,45 +14,68 @@ const NAV_ITEMS = [
   { id: 'direction', icon: '🧭', label: '研究方向' },
 ]
 
-function getOrCreateSession() {
-  let id = localStorage.getItem('ai_session_id')
-  if (!id) { id = uuidv4(); localStorage.setItem('ai_session_id', id) }
-  return id
-}
-
-function getSavedConversations(defaultId) {
-  const saved = localStorage.getItem('ai_conversations')
-  if (saved) return JSON.parse(saved)
-  return [{ id: defaultId, label: '研究對話 1', active: true }]
-}
-
 export default function App() {
-  const [sessionId, setSessionId] = useState(getOrCreateSession)
+  const [sessionId, setSessionId] = useState('')
   const [activePage, setActivePage] = useState('chat')
-  const [conversations, setConversations] = useState(() => getSavedConversations(sessionId))
+  const [conversations, setConversations] = useState([])
   const [modelName, setModelName] = useState('gemma-4-26b-a4b-it')
 
-  const switchConversation = (id) => {
+  // 載入對話列表與初始化 Session
+  useEffect(() => {
+    const loadConversations = async () => {
+      try {
+        const data = await getConversations()
+        if (data && data.conversations && data.conversations.length > 0) {
+          setConversations(data.conversations)
+          const activeConv = data.conversations.find(c => c.active) || data.conversations[0]
+          setSessionId(activeConv.id)
+        } else {
+          const defaultId = uuidv4()
+          const initialConversations = [{ id: defaultId, label: '研究對話 1', active: true }]
+          setConversations(initialConversations)
+          setSessionId(defaultId)
+          await saveConversations(initialConversations)
+        }
+      } catch (e) {
+        console.error("Failed to load conversations from backend:", e)
+        let id = localStorage.getItem('ai_session_id') || uuidv4()
+        const saved = localStorage.getItem('ai_conversations')
+        const localConvs = saved ? JSON.parse(saved) : [{ id, label: '研究對話 1', active: true }]
+        setConversations(localConvs)
+        const activeConv = localConvs.find(c => c.active) || localConvs[0]
+        setSessionId(activeConv.id)
+      }
+    }
+    loadConversations()
+  }, [])
+
+  const switchConversation = async (id) => {
     setSessionId(id)
     localStorage.setItem('ai_session_id', id)
-    setConversations(prev => {
-      const next = prev.map(c => ({ ...c, active: c.id === id }))
-      localStorage.setItem('ai_conversations', JSON.stringify(next))
-      return next
-    })
+    const nextConvs = conversations.map(c => ({ ...c, active: c.id === id }))
+    setConversations(nextConvs)
+    localStorage.setItem('ai_conversations', JSON.stringify(nextConvs))
+    try {
+      await saveConversations(nextConvs)
+    } catch (e) {
+      console.error(e)
+    }
     setActivePage('chat')
   }
 
-  const handleNewChat = () => {
+  const handleNewChat = async () => {
     const newId = uuidv4()
     const newLabel = `研究對話 ${conversations.length + 1}`
     setSessionId(newId)
     localStorage.setItem('ai_session_id', newId)
-    setConversations(prev => {
-      const next = [...prev.map(c => ({ ...c, active: false })), { id: newId, label: newLabel, active: true }]
-      localStorage.setItem('ai_conversations', JSON.stringify(next))
-      return next
-    })
+    const nextConvs = [...conversations.map(c => ({ ...c, active: false })), { id: newId, label: newLabel, active: true }]
+    setConversations(nextConvs)
+    localStorage.setItem('ai_conversations', JSON.stringify(nextConvs))
+    try {
+      await saveConversations(nextConvs)
+    } catch (e) {
+      console.error(e)
+    }
     setActivePage('chat')
   }
   const [showRoleModal, setShowRoleModal] = useState(false)
@@ -112,6 +135,14 @@ export default function App() {
   }
 
   const renderPage = () => {
+    if (!sessionId) {
+      return (
+        <div className="loading-state" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+          <div className="spinner" style={{ width: 40, height: 40, borderWidth: 3 }} />
+          <p style={{ marginTop: 12 }}>載入對話中...</p>
+        </div>
+      )
+    }
     switch (activePage) {
       case 'chat':      return <ChatPage key={sessionId} sessionId={sessionId} onStateUpdate={refreshState} />
       case 'summary':   return <SummaryPage key={summaryKey} sessionId={sessionId} />
