@@ -6,7 +6,7 @@ echo ===================================================
 
 :: Start Backend FastAPI
 echo Launching Backend FastAPI Server...
-start "Backend - FastAPI" cmd /c "cd backend && python main.py"
+start "Backend - FastAPI" cmd /c "cd backend && py main.py"
 
 :: Start Frontend Vite
 echo Launching Frontend Vite Development Server...
