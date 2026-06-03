@@ -98,6 +98,27 @@ async def upload_paper(
         Path(tmp_path).unlink(missing_ok=True)
 
 
+@app.post("/api/extract-metadata")
+async def extract_metadata(file: UploadFile = File(...)):
+    if not file.filename.endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="僅支援 PDF 格式的論文檔案。")
+
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+        content = await file.read()
+        tmp.write(content)
+        tmp_path = tmp.name
+
+    try:
+        metadata = await agent.extract_paper_metadata(tmp_path)
+        return metadata
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        Path(tmp_path).unlink(missing_ok=True)
+
+
 @app.get("/api/summaries/{session_id}")
 def get_summaries(session_id: str):
     return {"summaries": agent.get_summaries(session_id)}

@@ -356,6 +356,12 @@ class AgentCore:
             "message": f"論文「{summary.title}」已解析完成，共切分為 {chunks} 個段落並存入知識庫。",
         }
 
+    async def extract_paper_metadata(self, file_path: str) -> dict:
+        """解析上傳的 PDF 檔案內容並自動提取元數據"""
+        content = parse_pdf_to_markdown(file_path)
+        metadata = await self.analysis_skill.extract_metadata(content)
+        return metadata
+
     def get_summaries(self, session_id: str) -> list[dict]:
         return [s.model_dump() for s in self._summaries.get(session_id, [])]
 

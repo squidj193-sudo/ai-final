@@ -229,3 +229,24 @@
     transform: translateY(0);
   }
 }
+
+.parsing-metadata-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--accent-primary);
+  margin-top: 4px;
+}
+
+.small-spinner {
+  width: 14px;
+  height: 14px;
+  border-width: 2px;
+}
+
+.parsing-metadata-error {
+  font-size: 12px;
+  color: #ff4d4f;
+  margin-top: 4px;
+}

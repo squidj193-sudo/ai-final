@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { sendChat, uploadPaper } from '../api.js'
+import { sendChat, uploadPaper, extractMetadata } from '../api.js'
 import './ChatPage.css'
 
 export default function ChatPage({ sessionId, onStateUpdate }) {
@@ -27,6 +27,9 @@ export default function ChatPage({ sessionId, onStateUpdate }) {
   const [loading, setLoading] = useState(false)
   const [showUpload, setShowUpload] = useState(false)
   const [uploadFile, setUploadFile] = useState(null)
+  const [uploadForm, setUploadForm] = useState({ title: '', authors: '', year: '' })
+  const [parsingMetadata, setParsingMetadata] = useState(false)
+  const [metadataError, setMetadataError] = useState(null)
   const bottomRef = useRef(null)
   const fileInputRef = useRef(null)
 
@@ -81,20 +84,44 @@ export default function ChatPage({ sessionId, onStateUpdate }) {
   }
 
 
+  const handleFileChange = async (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+    setUploadFile(file)
+    setParsingMetadata(true)
+    setMetadataError(null)
+    try {
+      const meta = await extractMetadata(file)
+      setUploadForm({
+        title: meta.title || '',
+        authors: Array.isArray(meta.authors) ? meta.authors.join(', ') : '',
+        year: meta.year || ''
+      })
+    } catch (err) {
+      console.error("Metadata extraction failed:", err)
+      setMetadataError('自動解析論文資訊失敗，請手動輸入。')
+    } finally {
+      setParsingMetadata(false)
+    }
+  }
+
   const handleUpload = async () => {
-    if (!uploadFile) return
+    if (!uploadFile || !uploadForm.title) return
     setLoading(true)
     setShowUpload(false)
     addMessage('user', `📎 上傳論文：${uploadFile.name}`)
     try {
-      const res = await uploadPaper(sessionId, uploadFile)
+      const res = await uploadPaper(sessionId, uploadFile, uploadForm.title, uploadForm.authors, uploadForm.year)
       addMessage('assistant', `✅ ${res.message}\n\n**摘要摘錄：**\n\n**研究目的：** ${res.summary.research_goal}\n\n**主要發現：** ${res.summary.main_findings}`, 'analyze')
       onStateUpdate?.()
     } catch (e) {
       addMessage('assistant', `⚠️ 上傳失敗：${e.message}`, 'error')
     } finally {
       setLoading(false)
+      setUploadForm({ title: '', authors: '', year: '' })
       setUploadFile(null)
+      setParsingMetadata(false)
+      setMetadataError(null)
     }
   }
 
@@ -159,19 +186,46 @@ export default function ChatPage({ sessionId, onStateUpdate }) {
         <div className="upload-modal glass-card fade-in">
           <div className="upload-modal-header">
             <h3>📎 上傳論文</h3>
-            <button className="btn-icon btn" onClick={() => setShowUpload(false)}>✕</button>
+            <button className="btn-icon btn" onClick={() => {
+              setShowUpload(false)
+              setParsingMetadata(false)
+              setMetadataError(null)
+            }}>✕</button>
           </div>
           <div className="upload-form">
+            <label>論文標題 *
+              <input value={uploadForm.title} onChange={e => setUploadForm(p => ({ ...p, title: e.target.value }))} placeholder="例：A Review of Perovskite Solar Cells" disabled={parsingMetadata} />
+            </label>
+            <label>作者（以逗號分隔）
+              <input value={uploadForm.authors} onChange={e => setUploadForm(p => ({ ...p, authors: e.target.value }))} placeholder="例：Wang, Li, Chen" disabled={parsingMetadata} />
+            </label>
+            <label>年份
+              <input type="number" value={uploadForm.year} onChange={e => setUploadForm(p => ({ ...p, year: e.target.value }))} placeholder="例：2024" disabled={parsingMetadata} />
+            </label>
             <label className="file-input-label">
               {uploadFile ? `📄 ${uploadFile.name}` : '選擇 PDF 檔案'}
               <input ref={fileInputRef} type="file" accept=".pdf" style={{ display: 'none' }}
-                onChange={e => setUploadFile(e.target.files[0])} />
-              <button className="btn btn-ghost" onClick={() => fileInputRef.current?.click()}>瀏覽</button>
+                onChange={handleFileChange} />
+              <button className="btn btn-ghost" onClick={() => fileInputRef.current?.click()} disabled={parsingMetadata}>瀏覽</button>
             </label>
+            {parsingMetadata && (
+              <div className="parsing-metadata-status">
+                <span className="spinner small-spinner"></span> 正在自動解析論文標題與作者...
+              </div>
+            )}
+            {metadataError && (
+              <div className="parsing-metadata-error">
+                {metadataError}
+              </div>
+            )}
           </div>
           <div className="upload-actions">
-            <button className="btn btn-ghost" onClick={() => setShowUpload(false)}>取消</button>
-            <button className="btn btn-primary" onClick={handleUpload} disabled={!uploadFile}>
+            <button className="btn btn-ghost" onClick={() => {
+              setShowUpload(false)
+              setParsingMetadata(false)
+              setMetadataError(null)
+            }} disabled={parsingMetadata}>取消</button>
+            <button className="btn btn-primary" onClick={handleUpload} disabled={!uploadFile || !uploadForm.title || parsingMetadata}>
               開始解析
             </button>
           </div>

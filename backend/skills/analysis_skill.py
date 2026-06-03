@@ -38,6 +38,27 @@ SUMMARY_PROMPT = """你是一位學術研究助理。請根據以下論文內容
 }}"""
 
 
+METADATA_PROMPT = """你是一位學術研究助理。請從以下論文內容（通常是論文的第一頁或開頭部分）中，提取該論文的：
+1. 論文標題 (title)
+2. 作者列表 (authors)
+3. 發表年份 (year)
+
+論文開頭內容：
+{content}
+
+請嚴格依照以下 JSON 格式回覆，只回傳 JSON，不要有其他文字或 Markdown 標籤：
+{{
+  "title": "提取的論文標題，如果沒有找到，請填寫空字串",
+  "authors": ["作者1", "作者2"],
+  "year": 2024
+}}
+注意：
+- year 必須是整數年份，如果找不到，請回傳 null 或不包含此欄位。
+- authors 必須是字串陣列，如果找不到，請回傳空陣列 []。
+- title 請儘量完整且準確地提取，如果找不到，請回傳空字串。
+"""
+
+
 class AnalysisSkill:
     """文獻分析 Skill：生成論文結構化摘要"""
 
@@ -50,6 +71,30 @@ class AnalysisSkill:
             self.MODEL_NAME,
             generation_config=genai.GenerationConfig(temperature=0.2, max_output_tokens=4096),
         )
+
+    async def extract_metadata(self, content: str) -> dict:
+        """從論文開頭內容提取 Title, Authors, Year"""
+        import json, asyncio, re
+        prompt = METADATA_PROMPT.format(content=content[:4000])
+        response = await asyncio.to_thread(self._model.generate_content, prompt)
+        raw = response.text.strip()
+
+        # 魯棒解析 JSON 內容
+        match = re.search(r'```(?:json)?\s*(.*?)\s*```', raw, re.DOTALL | re.IGNORECASE)
+        if match:
+            candidate = match.group(1).strip()
+        else:
+            start = raw.find('{')
+            end = raw.rfind('}')
+            if start != -1 and end != -1:
+                candidate = raw[start:end+1].strip()
+            else:
+                candidate = raw.strip()
+
+        try:
+            return json.loads(candidate)
+        except Exception:
+            return {"title": "", "authors": [], "year": None}
 
     async def summarize(
         self,

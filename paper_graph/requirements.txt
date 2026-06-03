@@ -1,0 +1,12 @@
+sentence-transformers
+scikit-learn
+networkx
+python-louvain
+python-igraph
+leidenalg
+pandas
+numpy
+faiss-cpu
+plotly
+pyvis
+jinja2

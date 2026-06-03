@@ -20,6 +20,14 @@ export async function uploadPaper(sessionId, file) {
   return res.json()
 }
 
+export async function extractMetadata(file) {
+  const form = new FormData()
+  form.append('file', file)
+  const res = await fetch(`${BASE_URL}/extract-metadata`, { method: 'POST', body: form })
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
 export async function getSummaries(sessionId) {
   const res = await fetch(`${BASE_URL}/summaries/${sessionId}`)
   if (!res.ok) throw new Error(await res.text())
