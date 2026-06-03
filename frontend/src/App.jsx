@@ -3,6 +3,7 @@ import ChatPage from './pages/ChatPage.jsx'
 import SummaryPage from './pages/SummaryPage.jsx'
 import MatrixPage from './pages/MatrixPage.jsx'
 import DirectionPage from './pages/DirectionPage.jsx'
+import GraphPage from './pages/GraphPage.jsx'
 import { updateRoleState, getRoleState } from './api.js'
 import { v4 as uuidv4 } from 'uuid'
 import './App.css'
@@ -12,6 +13,7 @@ const NAV_ITEMS = [
   { id: 'summary',   icon: '📋', label: '論文摘要' },
   { id: 'matrix',    icon: '📊', label: '比較矩陣' },
   { id: 'direction', icon: '🧭', label: '研究方向' },
+  { id: 'graph',     icon: '🕸️', label: '論文圖譜' },
 ]
 
 function getOrCreateSession() {
@@ -56,7 +58,7 @@ export default function App() {
     setActivePage('chat')
   }
   const [showRoleModal, setShowRoleModal] = useState(false)
-  const [roleForm, setRoleForm] = useState({ large: '', medium: '', small: '' })
+  const [roleForm, setRoleForm] = useState({ large: '', medium: '' })
   const [roleDesc, setRoleDesc] = useState('尚未設定研究方向')
   const [summaryKey, setSummaryKey] = useState(0)
 
@@ -80,7 +82,6 @@ export default function App() {
         setRoleForm({
           large: d.state.large_direction || '',
           medium: d.state.medium_direction || '',
-          small: d.state.small_direction || '',
         })
       })
       .catch(() => {})
@@ -88,9 +89,13 @@ export default function App() {
 
   const saveRoleState = async () => {
     try {
-      await updateRoleState(sessionId, roleForm)
+      await updateRoleState(sessionId, { ...roleForm, small: null })
       const d = await getRoleState(sessionId)
       setRoleDesc(d.description)
+      setRoleForm({
+        large: d.state.large_direction || '',
+        medium: d.state.medium_direction || '',
+      })
       setShowRoleModal(false)
     } catch (e) {
       console.error(e)
@@ -104,7 +109,6 @@ export default function App() {
         setRoleForm({
           large: d.state.large_direction || '',
           medium: d.state.medium_direction || '',
-          small: d.state.small_direction || '',
         })
       })
       .catch(() => {})
@@ -117,6 +121,7 @@ export default function App() {
       case 'summary':   return <SummaryPage key={summaryKey} sessionId={sessionId} />
       case 'matrix':    return <MatrixPage sessionId={sessionId} />
       case 'direction': return <DirectionPage sessionId={sessionId} />
+      case 'graph':     return <GraphPage sessionId={sessionId} />
       default:          return null
     }
   }
@@ -230,26 +235,16 @@ export default function App() {
                     id="medium-direction-input"
                     value={roleForm.medium}
                     onChange={e => setRoleForm(p => ({ ...p, medium: e.target.value }))}
-                    placeholder="例：太陽能電池"
-                  />
-                </div>
-                <div className="direction-arrow">→</div>
-                <div className="direction-field">
-                  <label>小方向</label>
-                  <input
-                    id="small-direction-input"
-                    value={roleForm.small}
-                    onChange={e => setRoleForm(p => ({ ...p, small: e.target.value }))}
-                    placeholder="例：鈣鈦礦"
+                    placeholder="例：太陽能電池、深度學習"
                   />
                 </div>
               </div>
 
-              {(roleForm.large || roleForm.medium || roleForm.small) && (
+              {(roleForm.large || roleForm.medium) && (
                 <div className="direction-preview">
                   <span className="preview-label">目前設定：</span>
                   <span className="preview-path">
-                    {[roleForm.large, roleForm.medium, roleForm.small]
+                    {[roleForm.large, roleForm.medium]
                       .filter(Boolean)
                       .join(' › ')}
                   </span>

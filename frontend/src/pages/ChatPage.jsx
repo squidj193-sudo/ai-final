@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { sendChat, uploadPaper, extractMetadata } from '../api.js'
+import { sendChat, uploadPaper, extractMetadata, updateRoleState } from '../api.js'
 import './ChatPage.css'
 
 export default function ChatPage({ sessionId, onStateUpdate }) {
@@ -55,13 +55,26 @@ export default function ChatPage({ sessionId, onStateUpdate }) {
       } else if (res.type === 'direction') {
         localStorage.setItem(`direction_${sessionId}`, res.content)
       }
-      onStateUpdate?.()
+      // 如果後端帶回了角色狀態（大/中方向），直接持久化並刷新側邊欄
+      if (res.role_state) {
+        try {
+          await updateRoleState(sessionId, {
+            large: res.role_state.large_direction || '',
+            medium: res.role_state.medium_direction || '',
+            small: null,
+          })
+        } catch (_) {}
+        onStateUpdate?.()
+      } else if (res.role_updated) {
+        onStateUpdate?.()
+      }
     } catch (e) {
       addMessage('assistant', `⚠️ 發生錯誤：${e.message}`, 'error')
     } finally {
       setLoading(false)
     }
   }
+
 
   const handleSuggestionClick = async (sugText) => {
     if (loading) return
@@ -75,13 +88,25 @@ export default function ChatPage({ sessionId, onStateUpdate }) {
       } else if (res.type === 'direction') {
         localStorage.setItem(`direction_${sessionId}`, res.content)
       }
-      onStateUpdate?.()
+      if (res.role_state) {
+        try {
+          await updateRoleState(sessionId, {
+            large: res.role_state.large_direction || '',
+            medium: res.role_state.medium_direction || '',
+            small: null,
+          })
+        } catch (_) {}
+        onStateUpdate?.()
+      } else if (res.role_updated) {
+        onStateUpdate?.()
+      }
     } catch (e) {
       addMessage('assistant', `⚠️ 發生錯誤：${e.message}`, 'error')
     } finally {
       setLoading(false)
     }
   }
+
 
 
   const handleFileChange = async (e) => {

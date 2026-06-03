@@ -142,6 +142,15 @@ def get_role_state(session_id: str):
     return {"state": state.model_dump(), "description": desc}
 
 
+@app.get("/api/graph/{session_id}")
+def get_graph(session_id: str):
+    from skills.graph_skill import SessionGraphSkill
+    summaries = agent.get_summaries(session_id)
+    skill = SessionGraphSkill()
+    html = skill.generate_graph_html(summaries)
+    return {"html": html, "count": len(summaries)}
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
