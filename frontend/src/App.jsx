@@ -4,7 +4,7 @@ import SummaryPage from './pages/SummaryPage.jsx'
 import MatrixPage from './pages/MatrixPage.jsx'
 import GraphPage from './pages/GraphPage.jsx'
 import DirectionPage from './pages/DirectionPage.jsx'
-import { updateRoleState, getRoleState, getConversations, saveConversations } from './api.js'
+import { updateRoleState, getRoleState, getConversations, saveConversations, uploadPaper, getChatHistory, saveChatHistory } from './api.js'
 import { v4 as uuidv4 } from 'uuid'
 import './App.css'
 
@@ -21,6 +21,13 @@ export default function App() {
   const [activePage, setActivePage] = useState('chat')
   const [conversations, setConversations] = useState([])
   const [modelName, setModelName] = useState('gemma-4-26b-a4b-it')
+
+  // 全域聊天歷史與上傳佇列狀態
+  const [messages, setMessages] = useState([])
+  const [historyLoading, setHistoryLoading] = useState(true)
+  const [uploadQueue, setUploadQueue] = useState([])
+  const [uploading, setUploading] = useState(false)
+  const [showUpload, setShowUpload] = useState(false)
 
   // 載入對話列表與初始化 Session
   useEffect(() => {
@@ -51,7 +58,67 @@ export default function App() {
     loadConversations()
   }, [])
 
+  // 載入當前對話歷史紀錄
+  useEffect(() => {
+    let active = true
+    const loadHistory = async () => {
+      if (!sessionId) return
+      setHistoryLoading(true)
+      try {
+        const data = await getChatHistory(sessionId)
+        if (active) {
+          if (data && data.history && data.history.length > 0) {
+            setMessages(data.history)
+          } else {
+            const defaultMsg = [
+              {
+                id: 1,
+                role: 'assistant',
+                content: '您好！我是 AI 研究助理 🔬\n\n您可以：\n- 輸入關鍵字搜尋論文（例：perovskite solar cell）\n- 上傳 PDF 論文進行分析\n- 輸入「生成比較矩陣」整合已分析的論文\n- 輸入「分析研究方向」獲取可行研究建議\n\n請問您想如何開始？',
+                type: 'chat',
+              }
+            ]
+            setMessages(defaultMsg)
+            await saveChatHistory(sessionId, defaultMsg)
+          }
+        }
+      } catch (e) {
+        console.error("Failed to load chat history from backend:", e)
+        if (active) {
+          const saved = localStorage.getItem(`chat_history_${sessionId}`)
+          if (saved) {
+            setMessages(JSON.parse(saved))
+          } else {
+            setMessages([
+              {
+                id: 1,
+                role: 'assistant',
+                content: '您好！我是 AI 研究助理 🔬\n\n您可以：\n- 輸入關鍵字搜尋論文（例：perovskite solar cell）\n- 上傳 PDF 論文進行分析\n- 輸入「生成比較矩陣」整合已分析的論文\n- 輸入「分析研究方向」獲取可行研究建議\n\n請問您想如何開始？',
+                type: 'chat',
+              }
+            ])
+          }
+        }
+      } finally {
+        if (active) setHistoryLoading(false)
+      }
+    }
+    loadHistory()
+    return () => { active = false }
+  }, [sessionId])
+
+  // 自動同步訊息至後端與 localStorage
+  useEffect(() => {
+    if (!sessionId || messages.length === 0 || historyLoading) return
+    localStorage.setItem(`chat_history_${sessionId}`, JSON.stringify(messages))
+    saveChatHistory(sessionId, messages).catch(console.error)
+  }, [messages, sessionId, historyLoading])
+
   const switchConversation = async (id) => {
+    if (uploading) {
+      alert("目前正在上傳/解析論文中，請待解析完成後再切換對話。")
+      return
+    }
     setSessionId(id)
     localStorage.setItem('ai_session_id', id)
     const nextConvs = conversations.map(c => ({ ...c, active: c.id === id }))
@@ -66,6 +133,10 @@ export default function App() {
   }
 
   const handleNewChat = async () => {
+    if (uploading) {
+      alert("目前正在上傳/解析論文中，請待解析完成後再新增對話。")
+      return
+    }
     const newId = uuidv4()
     const newLabel = `研究對話 ${conversations.length + 1}`
     setSessionId(newId)
@@ -80,10 +151,65 @@ export default function App() {
     }
     setActivePage('chat')
   }
+
   const [showRoleModal, setShowRoleModal] = useState(false)
   const [roleForm, setRoleForm] = useState({ large: '', medium: '', small: '' })
   const [roleDesc, setRoleDesc] = useState('尚未設定研究方向')
   const [summaryKey, setSummaryKey] = useState(0)
+
+  // 全域背景上傳與佇列邏輯
+  const addMessage = (role, content, type = 'chat', extra = {}) => {
+    setMessages(prev => [...prev, { id: Date.now(), role, content, type, ...extra }])
+  }
+
+  const handleFileChange = (e) => {
+    if (!e.target.files) return
+    const files = Array.from(e.target.files)
+    const newItems = files.map(file => ({
+      id: Math.random().toString(36).substring(2, 9),
+      file,
+      status: 'pending',
+      error: null
+    }))
+    setUploadQueue(prev => [...prev, ...newItems])
+  }
+
+  const handleRemoveFile = (id) => {
+    setUploadQueue(prev => prev.filter(item => item.id !== id))
+  }
+
+  const handleCloseModal = () => {
+    if (uploading) return
+    setShowUpload(false)
+    setUploadQueue([])
+  }
+
+  const handleUpload = async () => {
+    if (uploadQueue.length === 0 || uploading) return
+    setUploading(true)
+    
+    // 依序處理佇列中處於 pending 狀態的檔案
+    for (let i = 0; i < uploadQueue.length; i++) {
+      const item = uploadQueue[i]
+      if (item.status !== 'pending') continue
+
+      setUploadQueue(prev => prev.map(q => q.id === item.id ? { ...q, status: 'processing' } : q))
+      addMessage('user', `📎 上傳論文：${item.file.name}`)
+
+      try {
+        const res = await uploadPaper(sessionId, item.file, "", "", "")
+        setUploadQueue(prev => prev.map(q => q.id === item.id ? { ...q, status: 'success' } : q))
+        addMessage('assistant', `✅ 論文「${res.summary.title}」已解析完成，存入知識庫中。\n\n**摘要摘錄：**\n\n**研究目的：** ${res.summary.research_goal}\n\n**主要發現：** ${res.summary.main_findings}`, 'analyze', { suggestions: ["生成比較矩陣", "分析研究方向"] })
+      } catch (e) {
+        console.error(e)
+        setUploadQueue(prev => prev.map(q => q.id === item.id ? { ...q, status: 'failed', error: e.message } : q))
+        addMessage('assistant', `⚠️ 論文「${item.file.name}」解析失敗：${e.message}`, 'error', { suggestions: ["如何安裝 PDF 依賴？", "重試對話"] })
+      }
+    }
+
+    refreshState()
+    setUploading(false)
+  }
 
   // 載入模型名稱
   useEffect(() => {
@@ -146,7 +272,25 @@ export default function App() {
       )
     }
     switch (activePage) {
-      case 'chat':      return <ChatPage key={sessionId} sessionId={sessionId} onStateUpdate={refreshState} />
+      case 'chat':      return (
+        <ChatPage 
+          key={sessionId} 
+          sessionId={sessionId} 
+          onStateUpdate={refreshState}
+          messages={messages}
+          setMessages={setMessages}
+          historyLoading={historyLoading}
+          uploadQueue={uploadQueue}
+          uploading={uploading}
+          showUpload={showUpload}
+          setShowUpload={setShowUpload}
+          handleFileChange={handleFileChange}
+          handleRemoveFile={handleRemoveFile}
+          handleCloseModal={handleCloseModal}
+          handleUpload={handleUpload}
+          addMessage={addMessage}
+        />
+      )
       case 'summary':   return <SummaryPage key={summaryKey} sessionId={sessionId} />
       case 'matrix':    return <MatrixPage sessionId={sessionId} />
       case 'graph':     return <GraphPage sessionId={sessionId} />

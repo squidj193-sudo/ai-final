@@ -4,82 +4,30 @@ import remarkGfm from 'remark-gfm'
 import { sendChat, uploadPaper, getChatHistory, saveChatHistory } from '../api.js'
 import './ChatPage.css'
 
-export default function ChatPage({ sessionId, onStateUpdate }) {
-  const [messages, setMessages] = useState([])
-  const [historyLoading, setHistoryLoading] = useState(true)
-
-  // 載入歷史對話紀錄
-  useEffect(() => {
-    let active = true
-    const loadHistory = async () => {
-      if (!sessionId) return
-      setHistoryLoading(true)
-      try {
-        const data = await getChatHistory(sessionId)
-        if (active) {
-          if (data && data.history && data.history.length > 0) {
-            setMessages(data.history)
-          } else {
-            const defaultMsg = [
-              {
-                id: 1,
-                role: 'assistant',
-                content: '您好！我是 AI 研究助理 🔬\n\n您可以：\n- 輸入關鍵字搜尋論文（例：perovskite solar cell）\n- 上傳 PDF 論文進行分析\n- 輸入「生成比較矩陣」整合已分析的論文\n- 輸入「分析研究方向」獲取可行研究建議\n\n請問您想如何開始？',
-                type: 'chat',
-              }
-            ]
-            setMessages(defaultMsg)
-            await saveChatHistory(sessionId, defaultMsg)
-          }
-        }
-      } catch (e) {
-        console.error("Failed to load chat history from backend:", e)
-        if (active) {
-          const saved = localStorage.getItem(`chat_history_${sessionId}`)
-          if (saved) {
-            setMessages(JSON.parse(saved))
-          } else {
-            setMessages([
-              {
-                id: 1,
-                role: 'assistant',
-                content: '您好！我是 AI 研究助理 🔬\n\n您可以：\n- 輸入關鍵字搜尋論文（例：perovskite solar cell）\n- 上傳 PDF 論文進行分析\n- 輸入「生成比較矩陣」整合已分析的論文\n- 輸入「分析研究方向」獲取可行研究建議\n\n請問您想如何開始？',
-                type: 'chat',
-              }
-            ])
-          }
-        }
-      } finally {
-        if (active) setHistoryLoading(false)
-      }
-    }
-    loadHistory()
-    return () => { active = false }
-  }, [sessionId])
-
-  // 自動同步訊息至後端與 localStorage
-  useEffect(() => {
-    if (!sessionId || messages.length === 0 || historyLoading) return
-    localStorage.setItem(`chat_history_${sessionId}`, JSON.stringify(messages))
-    saveChatHistory(sessionId, messages).catch(console.error)
-  }, [messages, sessionId, historyLoading])
-
-
+export default function ChatPage({
+  sessionId,
+  onStateUpdate,
+  messages,
+  setMessages,
+  historyLoading,
+  uploadQueue,
+  uploading,
+  showUpload,
+  setShowUpload,
+  handleFileChange,
+  handleRemoveFile,
+  handleCloseModal,
+  handleUpload,
+  addMessage
+}) {
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
-  const [showUpload, setShowUpload] = useState(false)
-  const [uploadQueue, setUploadQueue] = useState([])
-  const [uploading, setUploading] = useState(false)
   const bottomRef = useRef(null)
   const fileInputRef = useRef(null)
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
-
-  const addMessage = (role, content, type = 'chat', extra = {}) => {
-    setMessages(prev => [...prev, { id: Date.now(), role, content, type, ...extra }])
-  }
 
   const handleSend = async () => {
     if (!input.trim() || loading) return
@@ -121,57 +69,6 @@ export default function ChatPage({ sessionId, onStateUpdate }) {
     } finally {
       setLoading(false)
     }
-  }
-
-  const handleFileChange = (e) => {
-    if (!e.target.files) return
-    const files = Array.from(e.target.files)
-    const newItems = files.map(file => ({
-      id: Math.random().toString(36).substring(2, 9),
-      file,
-      status: 'pending', // 'pending' | 'processing' | 'success' | 'failed'
-      error: null
-    }))
-    setUploadQueue(prev => [...prev, ...newItems])
-  }
-
-  const handleRemoveFile = (id) => {
-    setUploadQueue(prev => prev.filter(item => item.id !== id))
-  }
-
-  const handleCloseModal = () => {
-    if (uploading) return
-    setShowUpload(false)
-    setUploadQueue([])
-  }
-
-  const handleUpload = async () => {
-    if (uploadQueue.length === 0 || uploading) return
-    setUploading(true)
-    setLoading(true)
-    
-    // Process queue sequentially
-    for (let i = 0; i < uploadQueue.length; i++) {
-      const item = uploadQueue[i]
-      if (item.status !== 'pending') continue
-
-      setUploadQueue(prev => prev.map(q => q.id === item.id ? { ...q, status: 'processing' } : q))
-      addMessage('user', `📎 上傳論文：${item.file.name}`)
-
-      try {
-        const res = await uploadPaper(sessionId, item.file, "", "", "")
-        setUploadQueue(prev => prev.map(q => q.id === item.id ? { ...q, status: 'success' } : q))
-        addMessage('assistant', `✅ 論文「${res.summary.title}」已解析完成，存入知識庫中。\n\n**摘要摘錄：**\n\n**研究目的：** ${res.summary.research_goal}\n\n**主要發現：** ${res.summary.main_findings}`, 'analyze', { suggestions: ["生成比較矩陣", "分析研究方向"] })
-      } catch (e) {
-        console.error(e)
-        setUploadQueue(prev => prev.map(q => q.id === item.id ? { ...q, status: 'failed', error: e.message } : q))
-        addMessage('assistant', `⚠️ 論文「${item.file.name}」解析失敗：${e.message}`, 'error', { suggestions: ["如何安裝 PDF 依賴？", "重試對話"] })
-      }
-    }
-
-    onStateUpdate?.()
-    setUploading(false)
-    setLoading(false)
   }
 
   const getMessageIcon = (type) => {
