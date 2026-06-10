@@ -209,6 +209,12 @@ def set_conversations(req: ConversationsRequest):
     return {"status": "ok"}
 
 
+@app.delete("/api/conversations/{session_id}")
+def delete_conversation(session_id: str):
+    agent.delete_session(session_id)
+    return {"status": "ok"}
+
+
 @app.get("/api/chat-history/{session_id}")
 def get_chat_history(session_id: str):
     return {"history": agent.get_chat_history(session_id)}

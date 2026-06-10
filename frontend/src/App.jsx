@@ -4,7 +4,7 @@ import SummaryPage from './pages/SummaryPage.jsx'
 import MatrixPage from './pages/MatrixPage.jsx'
 import GraphPage from './pages/GraphPage.jsx'
 import DirectionPage from './pages/DirectionPage.jsx'
-import { updateRoleState, getRoleState, getConversations, saveConversations, uploadPaper, getChatHistory, saveChatHistory } from './api.js'
+import { updateRoleState, getRoleState, getConversations, saveConversations, uploadPaper, getChatHistory, saveChatHistory, deleteConversation } from './api.js'
 import { v4 as uuidv4 } from 'uuid'
 import './App.css'
 
@@ -211,6 +211,44 @@ export default function App() {
     setUploading(false)
   }
 
+  const handleDeleteConversation = async (id, event) => {
+    event.stopPropagation()
+    if (uploading) {
+      alert("目前正在上傳/解析論文中，無法刪除對話。")
+      return
+    }
+    if (!window.confirm("確定要刪除此對話紀錄嗎？這將會清除此對話的所有歷史與文獻摘要快取。")) {
+      return
+    }
+
+    try {
+      await deleteConversation(id)
+      const nextConvs = conversations.filter(c => c.id !== id)
+      
+      let nextSessionId = sessionId
+      if (id === sessionId) {
+        if (nextConvs.length > 0) {
+          nextSessionId = nextConvs[0].id
+          nextConvs[0].active = true
+        } else {
+          nextSessionId = uuidv4()
+          nextConvs.push({ id: nextSessionId, label: '研究對話 1', active: true })
+        }
+      }
+
+      setConversations(nextConvs)
+      setSessionId(nextSessionId)
+      localStorage.setItem('ai_session_id', nextSessionId)
+      localStorage.setItem('ai_conversations', JSON.stringify(nextConvs))
+
+      await saveConversations(nextConvs)
+      setActivePage('chat')
+    } catch (e) {
+      console.error("Failed to delete conversation:", e)
+      alert(`刪除失敗：${e.message}`)
+    }
+  }
+
   // 載入模型名稱
   useEffect(() => {
     fetch('/health')
@@ -348,10 +386,22 @@ export default function App() {
                 key={c.id} 
                 className={`conv-item ${c.active ? 'active' : ''}`}
                 onClick={() => switchConversation(c.id)}
-                style={{ cursor: 'pointer' }}
+                style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
               >
-                <span className="conv-dot">●</span>
-                <span className="conv-label">{c.label}</span>
+                <div style={{ display: 'flex', alignItems: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+                  <span className="conv-dot">●</span>
+                  <span className="conv-label">{c.label}</span>
+                </div>
+                <button 
+                  className="btn-delete-conv" 
+                  title="刪除對話"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDeleteConversation(c.id, e);
+                  }}
+                >
+                  🗑️
+                </button>
               </li>
             ))}
           </ul>

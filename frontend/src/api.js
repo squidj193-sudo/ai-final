@@ -98,6 +98,14 @@ export async function saveConversations(conversations) {
   return res.json()
 }
 
+export async function deleteConversation(sessionId) {
+  const res = await fetch(`${BASE_URL}/conversations/${sessionId}`, {
+    method: 'DELETE',
+  })
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
 export async function getChatHistory(sessionId) {
   const res = await fetch(`${BASE_URL}/chat-history/${sessionId}`)
   if (!res.ok) throw new Error(await res.text())

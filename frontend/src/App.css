@@ -140,6 +140,29 @@
 .conv-dot { font-size: 8px; color: var(--accent-primary); }
 .conv-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
+.btn-delete-conv {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 11px;
+  padding: 4px;
+  opacity: 0;
+  transition: opacity 0.2s, color 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.conv-item:hover .btn-delete-conv {
+  opacity: 0.5;
+}
+
+.btn-delete-conv:hover {
+  opacity: 1 !important;
+  color: #f87171;
+}
+
 /* ─── 主內容區 ─── */
 .main-content {
   flex: 1;
