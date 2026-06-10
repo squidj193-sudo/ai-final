@@ -1,0 +1,34 @@
+{
+  "horse racing prediction models dynamic odds analysis__limit_2__year_all": [
+    {
+      "paper_id": "856b8a6aa55999ad92f1fdb6a3862fbd64452d6e",
+      "title": "A SHAP-Based Horse Racing Prediction Model with Variable Contribution Analysis in Gamification Environments",
+      "authors": [
+        "Hyeongwoo Song",
+        "Ji-yeoun Lee"
+      ],
+      "year": 2025,
+      "abstract": null,
+      "url": "https://www.semanticscholar.org/paper/856b8a6aa55999ad92f1fdb6a3862fbd64452d6e",
+      "doi": "10.7583/jkgs.2025.25.6.57"
+    },
+    {
+      "paper_id": "0cb31897058ef59d73ae7b932ddfe64677b70d56",
+      "title": "Aero-Engine RUL Prediction Based on SE-SFResNet Enhanced by improved Tianji’s Horse Racing Optimization",
+      "authors": [
+        "Kunfeng Yao",
+        "Dawei He",
+        "Guiyan Hu",
+        "Renbin Zhan",
+        "Pengjie Shao",
+        "Jingnan Zhang"
+      ],
+      "year": 2025,
+      "abstract": "Accurate data-driven prediction of aero-engine Remaining Useful Life (RUL) inherently involves a trade-off between prediction accuracy and computational complexity. This paper proposes a novel hybrid Squeeze-and-Excitation (SE) integrated with SF-Residual Neural Network (SE-SFResNet) framework, with hyperparameters systematically optimized through the Tianji’s Horse Racing Optimization improverd by Thinking Innovation Strategy (TIS-THRO). The framework embeds Squeeze-and-Excitation (SE) modules within SFResNet blocks to dynamically recalibrate channel features, which enhance both feature representation and computational efficiency. The TIS-THRO algorithm innovatively combines Thinking Innovation Strategy (TIS) with THRO, avoiding local optima through successful individual-guided global exploration to determine optimal network configurations. The method is verified by NASA’s Commercial Modular Aero-Propulsion System Simulation (C-MPASS) dataset. The results show that compared with the conventional ResNet and CNN-BiLSTM methods, the novel method has advantages in both RUL prediction effect and model complexity.",
+      "url": "https://www.semanticscholar.org/paper/0cb31897058ef59d73ae7b932ddfe64677b70d56",
+      "doi": "10.1109/BigDIA68682.2025.11383137"
+    }
+  ],
+  "artificial intelligence and information systems horse racing outcome prediction machine learning dynamic odds__limit_10__year_all": [],
+  "結合動態賠率的賽馬預測模型__limit_2__year_all": []
+}

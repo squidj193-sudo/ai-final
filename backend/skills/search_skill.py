@@ -112,12 +112,13 @@ class SearchSkill:
 
         # 若 API 完全超時或回報 429 失敗，嘗試回傳本機相似快取（備用方案）
         if data is None:
-            # 尋找包含部分關鍵字的快取
+            # 尋找包含部分關鍵字的快取，或者如果有 429 且有任何快取，直接回傳第一個非空的快取避免中斷
             for k, val in self._cache.items():
-                if full_query.lower() in k.lower():
+                if full_query.lower() in k.lower() or (last_error and isinstance(last_error, httpx.HTTPStatusError) and last_error.response.status_code == 429 and val):
                     return val
             if last_error:
                 if isinstance(last_error, httpx.HTTPStatusError) and last_error.response.status_code == 429:
+                    # 如果真的沒有任何快取可用，才回傳提示
                     raise RuntimeError("學術 API 連線過於頻繁（429 Too Many Requests），請稍候再試。系統已自動套用安全保護。")
                 raise last_error
             raise RuntimeError("無法連線至文獻搜尋 API，且無本地快取資料。")
