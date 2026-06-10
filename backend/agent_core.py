@@ -233,6 +233,36 @@ class AgentCore:
         except Exception:
             return query
 
+    async def _extract_directions_from_message(self, message: str) -> dict:
+        """從使用者訊息中提取大、中、小研究方向"""
+        prompt = f"""請分析以下使用者關於研究方向的描述，並將其拆解為學術研究的「大方向」、「中方向」、「小方向」。
+大方向：最上層領域範疇，例如：生醫、半導體、光電、人工智慧、永續發展。
+中方向：中層次研究技術或子領域，例如：基因工程、第三代半導體、太陽能電池、深度學習。
+小方向：具體研究主題或材料，例如：CRISPR 基因編輯、碳化矽元件、鈣鈦礦材料、物件偵測。
+
+使用者描述："{message}"
+
+請回傳以下 JSON 格式，若無法提取則填 null。不要包含任何 Markdown 區塊或額外文字：
+{{
+  "large_direction": "大方向名稱或 null",
+  "medium_direction": "中方向名稱或 null",
+  "small_direction": "小方向名稱或 null"
+}}"""
+        try:
+            response = await asyncio.to_thread(self._intent_model.generate_content, prompt)
+            raw = response.text.strip()
+            if raw.startswith("```"):
+                raw = "\n".join(raw.split("\n")[1:-1])
+            res = json.loads(raw)
+            return {
+                "large": res.get("large_direction"),
+                "medium": res.get("medium_direction"),
+                "small": res.get("small_direction")
+            }
+        except Exception as e:
+            logger.warning(f"Failed to extract directions: {e}")
+            return {"large": None, "medium": None, "small": None}
+
     async def chat(self, session_id: str, message: str) -> dict:
         """包裝主要對話，將使用者訊息與助理回覆儲存至後端歷史紀錄"""
         import time
@@ -285,6 +315,28 @@ class AgentCore:
         role_context = role_state.get_search_context()
         full_context = role_state.get_full_hierarchy_desc()
         
+        # 1. 偵測意圖並自動提取研究方向，讓「大中小方向」能夠自動更新
+        try:
+            intent_res = await self.detect_intent(message)
+            intent = intent_res.get("intent", "chat")
+            if intent == "set_direction":
+                extracted = await self._extract_directions_from_message(message)
+                if extracted.get("large") or extracted.get("medium") or extracted.get("small"):
+                    current_state = self.state_skill.get_state(session_id)
+                    self.state_skill.update_state(
+                        session_id,
+                        large_direction=extracted["large"] or current_state.large_direction,
+                        medium_direction=extracted["medium"] or current_state.medium_direction,
+                        small_direction=extracted["small"] or current_state.small_direction
+                    )
+                    logger.info(f"Automatically updated research direction: {extracted}")
+                    # 重新取得更新後的 context
+                    role_state = self.state_skill.get_state(session_id)
+                    role_context = role_state.get_search_context()
+                    full_context = role_state.get_full_hierarchy_desc()
+        except Exception as e:
+            logger.warning(f"Auto-updating direction failed: {e}")
+
         try:
             # 優先檢測使用者輸入是否包含 URL 或 DOI
             import re

@@ -38,9 +38,59 @@ export default function App() {
     return saved !== null ? JSON.parse(saved) : true
   })
 
+  const [aiRecommendedStep, setAiRecommendedStep] = useState(null)
+
   useEffect(() => {
     localStorage.setItem('show_stepper', JSON.stringify(showStepper))
   }, [showStepper])
+
+  useEffect(() => {
+    if (!messages || messages.length === 0) {
+      setAiRecommendedStep(null)
+      return
+    }
+    const lastAssistant = [...messages].reverse().find(m => m.role === 'assistant')
+    if (!lastAssistant) {
+      setAiRecommendedStep(null)
+      return
+    }
+
+    const suggestions = lastAssistant.suggestions || []
+    const type = lastAssistant.type || ''
+
+    let recommended = null
+    for (const sug of suggestions) {
+      const lowerSug = sug.toLowerCase()
+      if (lowerSug.includes('定位') || lowerSug.includes('角色') || lowerSug.includes('設定研究') || lowerSug.includes('方向')) {
+        recommended = 1
+        break
+      } else if (lowerSug.includes('搜尋') || lowerSug.includes('文獻') || lowerSug.includes('上傳') || lowerSug.includes('採集') || lowerSug.includes('pdf') || lowerSug.includes('找文獻')) {
+        recommended = 2
+        break
+      } else if (lowerSug.includes('矩陣') || lowerSug.includes('比較矩陣') || lowerSug.includes('對比') || lowerSug.includes('表格')) {
+        recommended = 3
+        break
+      } else if (lowerSug.includes('圖譜') || lowerSug.includes('知識圖譜') || lowerSug.includes('關聯')) {
+        recommended = 4
+        break
+      } else if (lowerSug.includes('建議') || lowerSug.includes('課題') || lowerSug.includes('方向建議') || lowerSug.includes('研究方向')) {
+        recommended = 5
+        break
+      }
+    }
+
+    if (!recommended) {
+      if (type === 'search' || type === 'analyze') {
+        recommended = 3
+      } else if (type === 'matrix') {
+        recommended = 5
+      } else if (type === 'direction') {
+        recommended = 2
+      }
+    }
+
+    setAiRecommendedStep(recommended)
+  }, [messages])
 
   // 載入對話列表與初始化 Session
   useEffect(() => {
@@ -449,12 +499,28 @@ export default function App() {
         {/* 研究進度指示器 */}
         {showStepper && (
           <div className="research-stepper glass-card">
-            <div className="stepper-title">🔬 當前會話研究進度：</div>
+            <div className="stepper-title" style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+              <span>🔬 當前會話研究進度：</span>
+              {aiRecommendedStep && (
+                <span className="stepper-ai-recommendation-hint fade-in">
+                  🤖 AI 建議下一步：【{
+                    aiRecommendedStep === 1 ? '研究定位' :
+                    aiRecommendedStep === 2 ? '文獻採集' :
+                    aiRecommendedStep === 3 ? '對比矩陣' :
+                    aiRecommendedStep === 4 ? '知識圖譜' :
+                    '課題建議'
+                  }】
+                </span>
+              )}
+            </div>
             <div className="stepper-steps">
               
               {/* Step 1 */}
-              <div className={`step-item ${roleForm.large ? 'completed' : 'active'}`} onClick={() => setShowRoleModal(true)}>
-                <div className="step-number">🎯</div>
+              <div className={`step-item ${roleForm.large ? 'completed' : 'active'} ${aiRecommendedStep === 1 ? 'recommended' : ''}`} onClick={() => setShowRoleModal(true)}>
+                <div className="step-number">
+                  🎯
+                  {aiRecommendedStep === 1 && <span className="recommended-dot" />}
+                </div>
                 <div className="step-label">研究定位</div>
                 <div className="step-status-text">{roleForm.large ? '已設定' : '待定位'}</div>
               </div>
@@ -462,8 +528,11 @@ export default function App() {
               <div className={`step-line ${summariesCount >= 2 ? 'completed' : ''}`} />
 
               {/* Step 2 */}
-              <div className={`step-item ${summariesCount >= 2 ? 'completed' : (summariesCount === 1 || roleForm.large) ? 'active' : 'pending'}`} onClick={() => setActivePage('chat')}>
-                <div className="step-number">📚</div>
+              <div className={`step-item ${summariesCount >= 2 ? 'completed' : (summariesCount === 1 || roleForm.large) ? 'active' : 'pending'} ${aiRecommendedStep === 2 ? 'recommended' : ''}`} onClick={() => setActivePage('chat')}>
+                <div className="step-number">
+                  📚
+                  {aiRecommendedStep === 2 && <span className="recommended-dot" />}
+                </div>
                 <div className="step-label">文獻採集</div>
                 <div className="step-status-text">已收錄 {summariesCount} 篇</div>
               </div>
@@ -471,8 +540,11 @@ export default function App() {
               <div className={`step-line ${matrixCached ? 'completed' : ''}`} />
 
               {/* Step 3 */}
-              <div className={`step-item ${matrixCached ? 'completed' : (summariesCount >= 2) ? 'active' : 'pending'}`} onClick={() => setActivePage('matrix')}>
-                <div className="step-number">📊</div>
+              <div className={`step-item ${matrixCached ? 'completed' : (summariesCount >= 2) ? 'active' : 'pending'} ${aiRecommendedStep === 3 ? 'recommended' : ''}`} onClick={() => setActivePage('matrix')}>
+                <div className="step-number">
+                  📊
+                  {aiRecommendedStep === 3 && <span className="recommended-dot" />}
+                </div>
                 <div className="step-label">對比矩陣</div>
                 <div className="step-status-text">{matrixCached ? '已生成' : '待生成'}</div>
               </div>
@@ -480,8 +552,11 @@ export default function App() {
               <div className={`step-line ${summariesCount >= 2 ? 'completed' : ''}`} />
 
               {/* Step 4 */}
-              <div className={`step-item ${summariesCount >= 2 ? 'completed' : summariesCount === 1 ? 'active' : 'pending'}`} onClick={() => setActivePage('graph')}>
-                <div className="step-number">🕸️</div>
+              <div className={`step-item ${summariesCount >= 2 ? 'completed' : summariesCount === 1 ? 'active' : 'pending'} ${aiRecommendedStep === 4 ? 'recommended' : ''}`} onClick={() => setActivePage('graph')}>
+                <div className="step-number">
+                  🕸️
+                  {aiRecommendedStep === 4 && <span className="recommended-dot" />}
+                </div>
                 <div className="step-label">知識圖譜</div>
                 <div className="step-status-text">{summariesCount >= 2 ? '已建構' : '文獻不足'}</div>
               </div>
@@ -489,8 +564,11 @@ export default function App() {
               <div className={`step-line ${directionCached ? 'completed' : ''}`} />
 
               {/* Step 5 */}
-              <div className={`step-item ${directionCached ? 'completed' : matrixCached ? 'active' : 'pending'}`} onClick={() => setActivePage('direction')}>
-                <div className="step-number">🧭</div>
+              <div className={`step-item ${directionCached ? 'completed' : matrixCached ? 'active' : 'pending'} ${aiRecommendedStep === 5 ? 'recommended' : ''}`} onClick={() => setActivePage('direction')}>
+                <div className="step-number">
+                  🧭
+                  {aiRecommendedStep === 5 && <span className="recommended-dot" />}
+                </div>
                 <div className="step-label">課題建議</div>
                 <div className="step-status-text">{directionCached ? '已分析' : '待分析'}</div>
               </div>
