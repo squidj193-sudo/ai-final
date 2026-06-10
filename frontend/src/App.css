@@ -309,3 +309,124 @@
   .direction-row { flex-direction: column; }
   .direction-arrow { display: none; }
 }
+
+/* ─── 研究進度指示器 Stepper ─── */
+.research-stepper {
+  margin: 16px 24px 8px;
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: var(--radius-md);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(10px);
+}
+
+.stepper-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.stepper-steps {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  max-width: 850px;
+}
+
+.step-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  position: relative;
+  transition: transform 0.2s ease;
+  min-width: 70px;
+}
+.step-item:hover {
+  transform: translateY(-2px);
+}
+
+.step-number {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.05);
+  border: 2px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  transition: all 0.3s ease;
+  margin-bottom: 6px;
+}
+
+.step-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 2px;
+}
+
+.step-status-text {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+/* Step Lines */
+.step-line {
+  flex: 1;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.06);
+  margin: 0 8px;
+  margin-top: -16px;
+  transition: background 0.3s ease;
+}
+
+/* Completed State */
+.step-item.completed .step-number {
+  background: linear-gradient(135deg, #10b981, #059669);
+  border-color: #10b981;
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.4);
+}
+.step-item.completed .step-label {
+  color: var(--text-primary);
+}
+.step-item.completed .step-status-text {
+  color: #34d399;
+}
+.step-line.completed {
+  background: #10b981;
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.4);
+}
+
+/* Active State */
+.step-item.active .step-number {
+  background: rgba(99, 102, 241, 0.1);
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 12px rgba(99, 102, 241, 0.4);
+  animation: pulse 2s infinite;
+}
+.step-item.active .step-label {
+  color: var(--accent-primary);
+}
+.step-item.active .step-status-text {
+  color: #a5b4fc;
+}
+
+/* Pending State */
+.step-item.pending .step-number {
+  opacity: 0.4;
+}
+.step-item.pending .step-label {
+  color: var(--text-muted);
+}
+.step-item.pending .step-status-text {
+  color: var(--text-muted);
+}

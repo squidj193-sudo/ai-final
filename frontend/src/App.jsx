@@ -4,7 +4,7 @@ import SummaryPage from './pages/SummaryPage.jsx'
 import MatrixPage from './pages/MatrixPage.jsx'
 import GraphPage from './pages/GraphPage.jsx'
 import DirectionPage from './pages/DirectionPage.jsx'
-import { updateRoleState, getRoleState, getConversations, saveConversations, uploadPaper, getChatHistory, saveChatHistory, deleteConversation } from './api.js'
+import { updateRoleState, getRoleState, getConversations, saveConversations, uploadPaper, getChatHistory, saveChatHistory, deleteConversation, getSummaries, getMatrix, getDirection } from './api.js'
 import { v4 as uuidv4 } from 'uuid'
 import './App.css'
 
@@ -28,6 +28,11 @@ export default function App() {
   const [uploadQueue, setUploadQueue] = useState([])
   const [uploading, setUploading] = useState(false)
   const [showUpload, setShowUpload] = useState(false)
+
+  // 任務進度指標狀態
+  const [summariesCount, setSummariesCount] = useState(0)
+  const [matrixCached, setMatrixCached] = useState(false)
+  const [directionCached, setDirectionCached] = useState(false)
 
   // 載入對話列表與初始化 Session
   useEffect(() => {
@@ -261,18 +266,35 @@ export default function App() {
       .catch(() => {})
   }, [])
 
-  // 載入角色狀態
-  useEffect(() => {
-    getRoleState(sessionId)
-      .then(d => {
-        setRoleDesc(d.description)
-        setRoleForm({
-          large: d.state.large_direction || '',
-          medium: d.state.medium_direction || '',
-          small: d.state.small_direction || '',
-        })
+  const refreshState = async () => {
+    if (!sessionId) return
+    try {
+      const d = await getRoleState(sessionId)
+      setRoleDesc(d.description)
+      setRoleForm({
+        large: d.state.large_direction || '',
+        medium: d.state.medium_direction || '',
+        small: d.state.small_direction || '',
       })
-      .catch(() => {})
+
+      const [sumsRes, matRes, dirRes] = await Promise.all([
+        getSummaries(sessionId).catch(() => ({ summaries: [] })),
+        getMatrix(sessionId).catch(() => ({ matrix: "" })),
+        getDirection(sessionId).catch(() => ({ direction: "" }))
+      ])
+
+      setSummariesCount(sumsRes.summaries ? sumsRes.summaries.length : 0)
+      setMatrixCached(!!(matRes && matRes.matrix))
+      setDirectionCached(!!(dirRes && dirRes.direction))
+    } catch (e) {
+      console.error("Failed to refresh global progress states:", e)
+    }
+    setSummaryKey(k => k + 1)
+  }
+
+  // 載入角色狀態與研究進度指標
+  useEffect(() => {
+    refreshState()
   }, [sessionId])
 
   const saveRoleState = async () => {
@@ -281,23 +303,10 @@ export default function App() {
       const d = await getRoleState(sessionId)
       setRoleDesc(d.description)
       setShowRoleModal(false)
+      refreshState() // 儲存完後重新整理進度
     } catch (e) {
       console.error(e)
     }
-  }
-
-  const refreshState = () => {
-    getRoleState(sessionId)
-      .then(d => {
-        setRoleDesc(d.description)
-        setRoleForm({
-          large: d.state.large_direction || '',
-          medium: d.state.medium_direction || '',
-          small: d.state.small_direction || '',
-        })
-      })
-      .catch(() => {})
-    setSummaryKey(k => k + 1)
   }
 
   const renderPage = () => {
@@ -421,6 +430,57 @@ export default function App() {
             <span className="badge badge-green">RAG 已啟用</span>
           </div>
         </header>
+
+        {/* 研究進度指示器 */}
+        <div className="research-stepper glass-card">
+          <div className="stepper-title">🔬 當前會話研究進度：</div>
+          <div className="stepper-steps">
+            
+            {/* Step 1 */}
+            <div className={`step-item ${roleForm.large ? 'completed' : 'active'}`} onClick={() => setShowRoleModal(true)}>
+              <div className="step-number">🎯</div>
+              <div className="step-label">研究定位</div>
+              <div className="step-status-text">{roleForm.large ? '已設定' : '待定位'}</div>
+            </div>
+            
+            <div className={`step-line ${summariesCount >= 2 ? 'completed' : ''}`} />
+
+            {/* Step 2 */}
+            <div className={`step-item ${summariesCount >= 2 ? 'completed' : (summariesCount === 1 || roleForm.large) ? 'active' : 'pending'}`} onClick={() => setActivePage('chat')}>
+              <div className="step-number">📚</div>
+              <div className="step-label">文獻採集</div>
+              <div className="step-status-text">已收錄 {summariesCount} 篇</div>
+            </div>
+
+            <div className={`step-line ${matrixCached ? 'completed' : ''}`} />
+
+            {/* Step 3 */}
+            <div className={`step-item ${matrixCached ? 'completed' : (summariesCount >= 2) ? 'active' : 'pending'}`} onClick={() => setActivePage('matrix')}>
+              <div className="step-number">📊</div>
+              <div className="step-label">對比矩陣</div>
+              <div className="step-status-text">{matrixCached ? '已生成' : '待生成'}</div>
+            </div>
+
+            <div className={`step-line ${summariesCount >= 2 ? 'completed' : ''}`} />
+
+            {/* Step 4 */}
+            <div className={`step-item ${summariesCount >= 2 ? 'completed' : summariesCount === 1 ? 'active' : 'pending'}`} onClick={() => setActivePage('graph')}>
+              <div className="step-number">🕸️</div>
+              <div className="step-label">知識圖譜</div>
+              <div className="step-status-text">{summariesCount >= 2 ? '已建構' : '文獻不足'}</div>
+            </div>
+
+            <div className={`step-line ${directionCached ? 'completed' : ''}`} />
+
+            {/* Step 5 */}
+            <div className={`step-item ${directionCached ? 'completed' : matrixCached ? 'active' : 'pending'}`} onClick={() => setActivePage('direction')}>
+              <div className="step-number">🧭</div>
+              <div className="step-label">課題建議</div>
+              <div className="step-status-text">{directionCached ? '已分析' : '待分析'}</div>
+            </div>
+
+          </div>
+        </div>
 
         {/* 頁面內容 */}
         <div className="page-container">
