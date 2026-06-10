@@ -367,7 +367,7 @@ export default function App() {
     }
   }
 
-  const renderPage = () => {
+  const renderPages = () => {
     if (!sessionId) {
       return (
         <div className="loading-state" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
@@ -376,32 +376,41 @@ export default function App() {
         </div>
       )
     }
-    switch (activePage) {
-      case 'chat':      return (
-        <ChatPage 
-          key={sessionId} 
-          sessionId={sessionId} 
-          onStateUpdate={refreshState}
-          messages={messages}
-          setMessages={setMessages}
-          historyLoading={historyLoading}
-          uploadQueue={uploadQueue}
-          uploading={uploading}
-          showUpload={showUpload}
-          setShowUpload={setShowUpload}
-          handleFileChange={handleFileChange}
-          handleRemoveFile={handleRemoveFile}
-          handleCloseModal={handleCloseModal}
-          handleUpload={handleUpload}
-          addMessage={addMessage}
-        />
-      )
-      case 'summary':   return <SummaryPage key={summaryKey} sessionId={sessionId} />
-      case 'matrix':    return <MatrixPage sessionId={sessionId} />
-      case 'graph':     return <GraphPage sessionId={sessionId} />
-      case 'direction': return <DirectionPage sessionId={sessionId} />
-      default:          return null
-    }
+    return (
+      <div className="spa-page-container" style={{ width: '100%', height: '100%', position: 'relative' }}>
+        <div style={{ display: activePage === 'chat' ? 'block' : 'none', height: '100%' }}>
+          <ChatPage 
+            key={sessionId} 
+            sessionId={sessionId} 
+            onStateUpdate={refreshState}
+            messages={messages}
+            setMessages={setMessages}
+            historyLoading={historyLoading}
+            uploadQueue={uploadQueue}
+            uploading={uploading}
+            showUpload={showUpload}
+            setShowUpload={setShowUpload}
+            handleFileChange={handleFileChange}
+            handleRemoveFile={handleRemoveFile}
+            handleCloseModal={handleCloseModal}
+            handleUpload={handleUpload}
+            addMessage={addMessage}
+          />
+        </div>
+        <div style={{ display: activePage === 'summary' ? 'block' : 'none', height: '100%' }}>
+          <SummaryPage key={summaryKey} sessionId={sessionId} />
+        </div>
+        <div style={{ display: activePage === 'matrix' ? 'block' : 'none', height: '100%' }}>
+          <MatrixPage sessionId={sessionId} />
+        </div>
+        <div style={{ display: activePage === 'graph' ? 'block' : 'none', height: '100%' }}>
+          <GraphPage sessionId={sessionId} activePage={activePage} />
+        </div>
+        <div style={{ display: activePage === 'direction' ? 'block' : 'none', height: '100%' }}>
+          <DirectionPage sessionId={sessionId} />
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -579,7 +588,7 @@ export default function App() {
 
         {/* 頁面內容 */}
         <div className="page-container">
-          {renderPage()}
+          {renderPages()}
         </div>
       </main>
 

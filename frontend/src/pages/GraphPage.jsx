@@ -15,7 +15,7 @@ const COMMUNITY_COLORS = [
   '#fb923c'  // Orange
 ]
 
-export default function GraphPage({ sessionId }) {
+export default function GraphPage({ sessionId, activePage }) {
   const [rawData, setRawData] = useState({ nodes: [], edges: [] })
   const [paperCount, setPaperCount] = useState(0)
   const [loading, setLoading] = useState(false)
@@ -77,6 +77,8 @@ export default function GraphPage({ sessionId }) {
   // 3. 核心 Vis.js 渲染與過濾邏輯
   useEffect(() => {
     if (!visLoaded || !containerRef.current || !rawData.nodes || rawData.nodes.length === 0) return
+    // 當前分頁不是圖譜時，不進行畫布初始化或重繪，避免 display none 下寬高被誤判為 0
+    if (activePage !== 'graph') return
 
     // 依相似度閾值過濾連線
     const filteredEdges = rawData.edges
@@ -166,6 +168,11 @@ export default function GraphPage({ sessionId }) {
     const network = new window.vis.Network(containerRef.current, data, options)
     networkRef.current = network
 
+    // 第一次繪製完成後，執行一次 fit() 以居中適應
+    network.once('afterDrawing', () => {
+      network.fit()
+    })
+
     // 綁定點擊事件
     network.on('click', (params) => {
       if (params.nodes.length > 0) {
@@ -198,7 +205,7 @@ export default function GraphPage({ sessionId }) {
         networkRef.current = null
       }
     }
-  }, [visLoaded, rawData, threshold])
+  }, [visLoaded, rawData, threshold, activePage])
 
   return (
     <div className="graph-page">
