@@ -117,6 +117,8 @@ class SearchSkill:
                 if full_query.lower() in k.lower():
                     return val
             if last_error:
+                if isinstance(last_error, httpx.HTTPStatusError) and last_error.response.status_code == 429:
+                    raise RuntimeError("學術 API 連線過於頻繁（429 Too Many Requests），請稍候再試。系統已自動套用安全保護。")
                 raise last_error
             raise RuntimeError("無法連線至文獻搜尋 API，且無本地快取資料。")
 
