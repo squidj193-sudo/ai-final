@@ -121,8 +121,9 @@ class SessionGraphSkill:
         # Generate PyVis Network
         net = Network(height="650px", width="100%", bgcolor="#1e1e24", font_color="white")
         
-        colors = ['#4e79a7', '#f28e2b', '#e15759', '#76b7b2', '#59a14f', 
-                  '#edc948', '#b07aa1', '#ff9da7', '#9c755f', '#bab0ac']
+        # 與前端 COMMUNITY_COLORS 統一
+        colors = ['#818cf8', '#f472b6', '#34d399', '#60a5fa', '#fb7185',
+                  '#a78bfa', '#fbbf24', '#2dd4bf', '#f87171', '#fb923c']
 
         # Add nodes to PyVis
         for node in G.nodes():
@@ -381,34 +382,67 @@ class SessionGraphSkill:
         except Exception:
             partition = {n: 0 for n in G.nodes()}
 
-        # 4.5 為每個社群產生代表性標籤（從該群組論文的合併文本中萃取 TF-IDF 最高的關鍵字）
+        # 4.5 為每個社群產生人類友善的代表性標籤
+        # 優先使用論文自帶的 keywords 欄位，fallback 到 TF-IDF tokenizer
+        from collections import Counter
         community_labels = {}
         try:
-            # 按群組收集論文的 combined_text
-            group_texts = {}
+            # 按群組收集論文資料
+            group_papers = {}  # cid -> list of summary dicts
             for idx in range(len(summaries)):
                 cid = partition.get(idx, 0)
-                if cid not in group_texts:
-                    group_texts[cid] = []
-                group_texts[cid].append(G.nodes[idx]["combined_text"])
-            
-            for cid, texts in group_texts.items():
-                merged = " ".join(texts)
+                if cid not in group_papers:
+                    group_papers[cid] = []
+                group_papers[cid].append(summaries[idx])
+
+            for cid, papers in group_papers.items():
+                # 如果群組只有 1 篇論文，直接用標題前 15 字
+                if len(papers) == 1:
+                    title = papers[0].get("title", "")
+                    community_labels[str(cid)] = title[:15] + "…" if len(title) > 15 else (title or f"社群 {cid}")
+                    continue
+
+                # 策略一：從論文的 keywords 欄位統計高頻關鍵字
+                all_keywords = []
+                for p in papers:
+                    kws = p.get("keywords", [])
+                    if isinstance(kws, list):
+                        all_keywords.extend([k.strip() for k in kws if k.strip()])
+
+                if all_keywords:
+                    freq = Counter(all_keywords)
+                    # 過濾掉太泛的詞
+                    generic = {"research", "study", "analysis", "review", "model", "method",
+                               "approach", "system", "data", "results", "paper", "based"}
+                    filtered = [(w, c) for w, c in freq.most_common(10)
+                                if w.lower() not in generic and len(w) >= 2]
+                    top_words = [w for w, _ in filtered[:3]]
+                    if top_words:
+                        community_labels[str(cid)] = " · ".join(top_words)
+                        continue
+
+                # 策略二 (fallback)：從合併文本用 tokenizer 取詞頻
+                merged = " ".join(G.nodes[idx]["combined_text"]
+                                  for idx in range(len(summaries))
+                                  if partition.get(idx, 0) == cid)
                 tokens = ch_en_tokenizer(merged)
                 if tokens:
-                    # 用詞頻取前 2~3 個高頻詞作為社群標籤
-                    from collections import Counter
                     freq = Counter(tokens)
-                    # 過濾掉太短或太通用的詞
-                    stopwords = {"the", "and", "for", "with", "from", "that", "this", "are", "was", "were", "has", "have", "been", "not", "but", "can", "also", "will", "our", "their", "which", "based", "using", "used", "results", "study", "research", "paper", "method", "approach", "proposed", "show", "than", "more", "most", "one", "two"}
-                    filtered = [(w, c) for w, c in freq.most_common(20) if w.lower() not in stopwords and len(w) >= 2]
+                    stopwords = {"the", "and", "for", "with", "from", "that", "this",
+                                 "are", "was", "were", "has", "have", "been", "not",
+                                 "but", "can", "also", "will", "our", "their", "which",
+                                 "based", "using", "used", "results", "study",
+                                 "research", "paper", "method", "approach", "proposed",
+                                 "show", "than", "more", "most", "one", "two"}
+                    filtered = [(w, c) for w, c in freq.most_common(20)
+                                if w.lower() not in stopwords and len(w) >= 2]
                     top_words = [w for w, _ in filtered[:3]]
-                    community_labels[cid] = " / ".join(top_words) if top_words else f"社群 {cid}"
+                    community_labels[str(cid)] = " · ".join(top_words) if top_words else f"社群 {cid}"
                 else:
-                    community_labels[cid] = f"社群 {cid}"
+                    community_labels[str(cid)] = f"社群 {cid}"
         except Exception:
             for cid in set(partition.values()):
-                community_labels[cid] = f"社群 {cid}"
+                community_labels[str(cid)] = f"社群 {cid}"
 
         # 5. 組裝 Nodes
         nodes_data = []

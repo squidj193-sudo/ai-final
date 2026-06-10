@@ -289,29 +289,48 @@ export default function GraphPage({ sessionId, activePage }) {
               
               {/* 說明指標圖例 */}
               <div className="graph-legend-bar">
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', alignItems: 'center' }}>
-                  <span style={{ fontWeight: 600, marginRight: '4px', whiteSpace: 'nowrap' }}>🏷️ 社群分類：</span>
-                  {Object.keys(communityLabels).length > 0 ? (
-                    Object.entries(communityLabels).map(([groupId, label]) => (
-                      <span key={groupId} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', whiteSpace: 'nowrap' }}>
-                        <span style={{
-                          display: 'inline-block',
-                          width: '10px',
-                          height: '10px',
-                          borderRadius: '50%',
-                          backgroundColor: COMMUNITY_COLORS[parseInt(groupId) % COMMUNITY_COLORS.length],
-                          flexShrink: 0
-                        }} />
-                        <span style={{ fontSize: '11px', color: '#cbd5e1' }}>{label}</span>
-                      </span>
-                    ))
-                  ) : (
-                    <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>載入中...</span>
-                  )}
+                {/* 第一行：社群分類標題 */}
+                <div className="legend-section-title">🏷️ 社群分類</div>
+                {/* 第二行：動態社群 pill badges */}
+                <div className="legend-community-row">
+                  {(() => {
+                    const hasLabels = Object.keys(communityLabels).length > 0
+                    const hasNodes = rawData.nodes && rawData.nodes.length > 0
+                    if (!hasLabels && !hasNodes) {
+                      return <span className="legend-empty-hint">尚無論文資料</span>
+                    }
+                    if (!hasLabels && hasNodes) {
+                      return <span className="legend-empty-hint">社群分析中…</span>
+                    }
+                    // 計算每個社群的論文數量
+                    const groupCounts = {}
+                    rawData.nodes.forEach(n => {
+                      groupCounts[n.group] = (groupCounts[n.group] || 0) + 1
+                    })
+                    return Object.entries(communityLabels).map(([groupId, label]) => {
+                      const color = COMMUNITY_COLORS[parseInt(groupId) % COMMUNITY_COLORS.length]
+                      const count = groupCounts[parseInt(groupId)] || 0
+                      return (
+                        <span
+                          key={groupId}
+                          className="legend-pill"
+                          style={{ '--pill-color': color }}
+                        >
+                          <span className="legend-dot" style={{ backgroundColor: color }} />
+                          <span className="legend-label">{label}</span>
+                          {count > 0 && (
+                            <span className="legend-count">{count}篇</span>
+                          )}
+                        </span>
+                      )
+                    })
+                  })()}
                 </div>
-                <div style={{ display: 'flex', gap: '14px', marginTop: '4px', flexWrap: 'wrap' }}>
-                  <span>⚫ 大小：PageRank 影響力</span>
-                  <span>➖ 連線粗細：語意相似百分比</span>
+                {/* 第三行：其他圖例指標 */}
+                <div className="legend-metrics-row">
+                  <span>⚫ 節點大小 = PageRank 影響力</span>
+                  <span className="legend-separator">|</span>
+                  <span>━ 連線粗細 = 語意相似度</span>
                 </div>
               </div>
             </div>

@@ -129,16 +129,90 @@
   background: #090d16; /* 配合深色玻璃主調 */
 }
 
-/* 底端圖例條 */
+/* 底端圖例條 — 三行結構 */
 .graph-legend-bar {
-  padding: 8px 16px;
+  padding: 10px 16px 8px;
   border-top: 1px solid var(--border-subtle);
-  background: rgba(255, 255, 255, 0.01);
+  background: rgba(10, 14, 26, 0.5);
   display: flex;
-  justify-content: center;
-  gap: 20px;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.legend-section-title {
   font-size: 11px;
-  color: var(--text-secondary);
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: 0.03em;
+}
+
+.legend-community-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.legend-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px 3px 7px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: background 0.2s, border-color 0.2s;
+  white-space: nowrap;
+}
+
+.legend-pill:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--pill-color, rgba(255, 255, 255, 0.15));
+}
+
+.legend-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  box-shadow: 0 0 5px rgba(255, 255, 255, 0.1);
+}
+
+.legend-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: #cbd5e1;
+}
+
+.legend-count {
+  font-size: 10px;
+  font-weight: 600;
+  color: #94a3b8;
+  background: rgba(255, 255, 255, 0.06);
+  padding: 1px 5px;
+  border-radius: 8px;
+  margin-left: 2px;
+}
+
+.legend-empty-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.legend-metrics-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  font-size: 10px;
+  color: var(--text-muted);
+  padding-top: 2px;
+  border-top: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.legend-separator {
+  color: rgba(255, 255, 255, 0.1);
+  font-weight: 300;
 }
 
 /* 右側：詳細資訊邊欄 (Sidebar Inspector) */
