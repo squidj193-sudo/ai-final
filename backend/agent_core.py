@@ -262,8 +262,22 @@ class AgentCore:
             translated = response.text.strip()
             # 移除常見的包裝引號
             translated = translated.strip('"\'`')
+            
+            # 偵測是否產生了幻覺/指令外洩（例如長度過長、包含換行、包含指令描述）
+            bad_keywords = ["role:", "task:", "translate", "semantic scholar", "optimized keywords", "punctuation", "format requirements", "input:"]
+            is_hallucination = (
+                "\n" in translated 
+                or len(translated) > 80 
+                or any(bk in translated.lower() for bk in bad_keywords)
+            )
+            
+            if is_hallucination:
+                logger.warning(f"Detected query translation hallucination/prompt leak, using original query. Raw response: {translated}")
+                return query.strip()
+                
             return translated if translated else query
-        except Exception:
+        except Exception as e:
+            logger.warning(f"Query translation failed: {e}, using original query.")
             return query
 
     async def _extract_directions_from_message(self, message: str) -> dict:
@@ -296,10 +310,11 @@ class AgentCore:
 
     async def _infer_and_update_direction(self, session_id: str, title: str, keywords: list[str], abstract: str = "") -> None:
         """根據論文標題、關鍵字與摘要自動推導並更新大、中、小研究方向"""
-        # 如果目前的大、中、小方向都已經有了，就不重複推導（或者只在不完整時推導）
+        # 如果已經進展到論文摘要階段，且大、中、小方向都已經設定完整，就不再覆寫
+        has_summaries = bool(self.get_summaries(session_id))
         current_state = self.state_skill.get_state(session_id)
-        if current_state.large_direction and current_state.medium_direction and current_state.small_direction:
-            return # 已經設定完整，不覆寫
+        if has_summaries and current_state.large_direction and current_state.medium_direction and current_state.small_direction:
+            return # 已經設定完整且有論文摘要，不覆寫
             
         prompt = f"""你是一個學術研究分類專家。請針對以下提供的論文標題、關鍵字與摘要，為其歸納推導出最適當的「大方向（學門領域）」、「中方向（子領域技術）」、「小方向（具體主題材料）」。
 
@@ -408,23 +423,32 @@ class AgentCore:
         
         # 1. 偵測意圖並自動提取研究方向，讓「大中小方向」能夠自動更新
         try:
-            intent_res = await self.detect_intent(message)
-            intent = intent_res.get("intent", "chat")
-            if intent in ("set_direction", "chat", "search"):
-                extracted = await self._extract_directions_from_message(message)
-                if extracted.get("large") or extracted.get("medium") or extracted.get("small"):
-                    current_state = self.state_skill.get_state(session_id)
-                    self.state_skill.update_state(
-                        session_id,
-                        large_direction=extracted["large"] or current_state.large_direction,
-                        medium_direction=extracted["medium"] or current_state.medium_direction,
-                        small_direction=extracted["small"] or current_state.small_direction
-                    )
-                    logger.info(f"Automatically updated research direction: {extracted}")
-                    # 重新取得更新後的 context
-                    role_state = self.state_skill.get_state(session_id)
-                    role_context = role_state.get_search_context()
-                    full_context = role_state.get_full_hierarchy_desc()
+            has_summaries = bool(self.get_summaries(session_id))
+            if not has_summaries:
+                # 尚未進展到論文摘要，則在所有對話中自動推導並更新方向
+                await self._infer_and_update_direction(session_id, "", [], message)
+                # 重新取得更新後的 context
+                role_state = self.state_skill.get_state(session_id)
+                role_context = role_state.get_search_context()
+                full_context = role_state.get_full_hierarchy_desc()
+            else:
+                # 若已有摘要，僅在包含明確設定意圖時嘗試提取
+                intent_res = await self.detect_intent(message)
+                intent = intent_res.get("intent", "chat")
+                if intent == "set_direction":
+                    extracted = await self._extract_directions_from_message(message)
+                    if extracted.get("large") or extracted.get("medium") or extracted.get("small"):
+                        current_state = self.state_skill.get_state(session_id)
+                        self.state_skill.update_state(
+                            session_id,
+                            large_direction=extracted["large"] or current_state.large_direction,
+                            medium_direction=extracted["medium"] or current_state.medium_direction,
+                            small_direction=extracted["small"] or current_state.small_direction
+                        )
+                        # 重新取得更新後的 context
+                        role_state = self.state_skill.get_state(session_id)
+                        role_context = role_state.get_search_context()
+                        full_context = role_state.get_full_hierarchy_desc()
         except Exception as e:
             logger.warning(f"Auto-updating direction failed: {e}")
 

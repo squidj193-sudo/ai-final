@@ -216,6 +216,7 @@ export default function App() {
   }
 
   const [showRoleModal, setShowRoleModal] = useState(false)
+  const [showAdvanced, setShowAdvanced] = useState(false)
   const [roleForm, setRoleForm] = useState({ large: '', medium: '', small: '' })
   const [roleDesc, setRoleDesc] = useState('尚未設定研究方向')
   const [summaryKey, setSummaryKey] = useState(0)
@@ -597,54 +598,159 @@ export default function App() {
         <div className="modal-backdrop" onClick={() => setShowRoleModal(false)}>
           <div className="modal glass-card fade-in" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <h2>👤 研究角色設定</h2>
+              <h2>👤 研究方向設定</h2>
               <button className="btn btn-icon" onClick={() => setShowRoleModal(false)}>✕</button>
             </div>
             <p className="modal-desc">
-              設定您的研究方向後，Agent 會自動縮小論文搜尋範圍，提供更精準的結果。
+              系統將根據您的對話自動分析並更新目前研究大、中、小方向。您也可以點擊下方展開手動調整。
             </p>
 
             <div className="modal-form">
-              <div className="direction-row">
-                <div className="direction-field">
-                  <label>大方向</label>
-                  <input
-                    id="large-direction-input"
-                    value={roleForm.large}
-                    onChange={e => setRoleForm(p => ({ ...p, large: e.target.value }))}
-                    placeholder="例：光電、材料科學、機器學習"
-                  />
+              {/* 目前方向設定 */}
+              <div className="current-direction-section" style={{
+                background: 'rgba(99, 102, 241, 0.04)',
+                border: '1px solid rgba(99, 102, 241, 0.15)',
+                borderRadius: '8px',
+                padding: '16px',
+                marginBottom: '12px'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                  <span style={{ fontSize: '13px', fontWeight: '700', color: '#a5b4fc', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    📡 目前方向設定 (AI 自動推導)
+                  </span>
+                  <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
+                    {summariesCount > 0 ? '🔒 已進入論文摘要階段，方向已鎖定' : '⚡ 隨對話即時更新中'}
+                  </span>
                 </div>
-                <div className="direction-arrow">→</div>
-                <div className="direction-field">
-                  <label>中方向</label>
-                  <input
-                    id="medium-direction-input"
-                    value={roleForm.medium}
-                    onChange={e => setRoleForm(p => ({ ...p, medium: e.target.value }))}
-                    placeholder="例：太陽能電池"
-                  />
-                </div>
-                <div className="direction-arrow">→</div>
-                <div className="direction-field">
-                  <label>小方向</label>
-                  <input
-                    id="small-direction-input"
-                    value={roleForm.small}
-                    onChange={e => setRoleForm(p => ({ ...p, small: e.target.value }))}
-                    placeholder="例：鈣鈦礦"
-                  />
-                </div>
+                
+                {roleForm.large || roleForm.medium || roleForm.small ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                    {roleForm.large && (
+                      <div className="direction-pill" style={{
+                        background: 'rgba(99, 102, 241, 0.12)',
+                        border: '1px solid rgba(99, 102, 241, 0.25)',
+                        borderRadius: '6px',
+                        padding: '6px 12px',
+                        fontSize: '12px',
+                        color: '#c7d2fe',
+                        fontWeight: '500'
+                      }}>
+                        <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', marginRight: '4px' }}>大</span>
+                        {roleForm.large}
+                      </div>
+                    )}
+                    {roleForm.large && (roleForm.medium || roleForm.small) && (
+                      <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>➔</span>
+                    )}
+                    {roleForm.medium && (
+                      <div className="direction-pill" style={{
+                        background: 'rgba(139, 92, 246, 0.12)',
+                        border: '1px solid rgba(139, 92, 246, 0.25)',
+                        borderRadius: '6px',
+                        padding: '6px 12px',
+                        fontSize: '12px',
+                        color: '#ddd6fe',
+                        fontWeight: '500'
+                      }}>
+                        <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', marginRight: '4px' }}>中</span>
+                        {roleForm.medium}
+                      </div>
+                    )}
+                    {roleForm.medium && roleForm.small && (
+                      <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>➔</span>
+                    )}
+                    {roleForm.small && (
+                      <div className="direction-pill" style={{
+                        background: 'rgba(236, 72, 153, 0.12)',
+                        border: '1px solid rgba(236, 72, 153, 0.25)',
+                        borderRadius: '6px',
+                        padding: '6px 12px',
+                        fontSize: '12px',
+                        color: '#fbcfe8',
+                        fontWeight: '500'
+                      }}>
+                        <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', marginRight: '4px' }}>小</span>
+                        {roleForm.small}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', fontStyle: 'italic', padding: '4px 0' }}>
+                    📡 目前尚未偵測到明確研究方向，可在對話中直接輸入您的研究想法，AI 將自動為您更新設定。
+                  </div>
+                )}
               </div>
 
-              {(roleForm.large || roleForm.medium || roleForm.small) && (
-                <div className="direction-preview">
-                  <span className="preview-label">目前設定：</span>
-                  <span className="preview-path">
-                    {[roleForm.large, roleForm.medium, roleForm.small]
-                      .filter(Boolean)
-                      .join(' › ')}
-                  </span>
+              {/* 手動調整研究方向 */}
+              <div style={{ margin: '8px 0' }}>
+                <button 
+                  type="button" 
+                  onClick={() => setShowAdvanced(!showAdvanced)} 
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--text-secondary)',
+                    cursor: 'pointer',
+                    fontSize: '12px',
+                    fontWeight: '600',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    padding: '4px 0',
+                    outline: 'none',
+                    userSelect: 'none'
+                  }}
+                >
+                  {showAdvanced ? '▼' : '▶'} ⚙️ 手動調整研究方向 (進階設定)
+                </button>
+              </div>
+
+              {/* 進階設定欄位 */}
+              {showAdvanced && (
+                <div className="modal-form-advanced fade-in" style={{
+                  background: 'rgba(255, 255, 255, 0.01)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: '8px',
+                  padding: '16px',
+                  marginTop: '4px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '12px'
+                }}>
+                  <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '0 0 4px 0' }}>
+                    您可以在此手動輸入或微調目前的研究方向，儲存後即可生效。
+                  </p>
+                  <div className="direction-row">
+                    <div className="direction-field">
+                      <label>大方向</label>
+                      <input
+                        id="large-direction-input"
+                        value={roleForm.large}
+                        onChange={e => setRoleForm(p => ({ ...p, large: e.target.value }))}
+                        placeholder="例：光電、材料科學、機器學習"
+                      />
+                    </div>
+                    <div className="direction-arrow">➔</div>
+                    <div className="direction-field">
+                      <label>中方向</label>
+                      <input
+                        id="medium-direction-input"
+                        value={roleForm.medium}
+                        onChange={e => setRoleForm(p => ({ ...p, medium: e.target.value }))}
+                        placeholder="例：太陽能電池"
+                      />
+                    </div>
+                    <div className="direction-arrow">➔</div>
+                    <div className="direction-field">
+                      <label>小方向</label>
+                      <input
+                        id="small-direction-input"
+                        value={roleForm.small}
+                        onChange={e => setRoleForm(p => ({ ...p, small: e.target.value }))}
+                        placeholder="例：鈣鈦礦"
+                      />
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
