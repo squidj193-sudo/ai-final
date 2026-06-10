@@ -157,15 +157,37 @@ class AgentCore:
         except Exception as e:
             logger.warning(f"Failed to save session data: {e}")
 
+    def _parse_json_robustly(self, raw: str):
+        """強健地從字串中以 Regex 抽取出 JSON 並解析為 dict 或 list"""
+        import re
+        import json
+        raw_clean = raw.strip()
+        match = re.search(r'\{.*\}', raw_clean, re.DOTALL)
+        if match:
+            json_str = match.group(0)
+        else:
+            match_arr = re.search(r'\[.*\]', raw_clean, re.DOTALL)
+            json_str = match_arr.group(0) if match_arr else raw_clean
+
+        try:
+            return json.loads(json_str)
+        except Exception as e:
+            # 備用：嘗試手動去掉 Markdown ``` 標籤
+            if "```" in json_str:
+                lines = [l for l in json_str.split("\n") if not l.strip().startswith("```")]
+                try:
+                    return json.loads("".join(lines).strip())
+                except:
+                    pass
+            raise e
+
     async def detect_intent(self, message: str) -> dict:
         prompt = INTENT_PROMPT.format(message=message)
         logger.info(f"Detecting intent for message: {message[:50]}...")
         response = await asyncio.to_thread(self._intent_model.generate_content, prompt)
         raw = response.text.strip()
-        if raw.startswith("```"):
-            raw = "\n".join(raw.split("\n")[1:-1])
         try:
-            res = json.loads(raw)
+            res = self._parse_json_robustly(raw)
             logger.info(f"Detected intent: {res.get('intent')} | Query: {res.get('query')}")
             return res
         except Exception as e:
@@ -251,9 +273,7 @@ class AgentCore:
         try:
             response = await asyncio.to_thread(self._intent_model.generate_content, prompt)
             raw = response.text.strip()
-            if raw.startswith("```"):
-                raw = "\n".join(raw.split("\n")[1:-1])
-            res = json.loads(raw)
+            res = self._parse_json_robustly(raw)
             return {
                 "large": res.get("large_direction"),
                 "medium": res.get("medium_direction"),
@@ -319,7 +339,7 @@ class AgentCore:
         try:
             intent_res = await self.detect_intent(message)
             intent = intent_res.get("intent", "chat")
-            if intent == "set_direction":
+            if intent in ("set_direction", "chat", "search"):
                 extracted = await self._extract_directions_from_message(message)
                 if extracted.get("large") or extracted.get("medium") or extracted.get("small"):
                     current_state = self.state_skill.get_state(session_id)
