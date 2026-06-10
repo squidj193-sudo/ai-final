@@ -129,7 +129,8 @@ class SessionGraphSkill:
                 title=tooltip,
                 size=size,
                 color=color,
-                group=cluster_id
+                group=cluster_id,
+                shape="dot"
             )
 
         # Add edges to PyVis
@@ -140,12 +141,31 @@ class SessionGraphSkill:
         net.toggle_physics(True)
         net.set_options("""
         var options = {
+          "nodes": {
+            "font": {
+              "size": 13,
+              "color": "#ffffff",
+              "strokeWidth": 3,
+              "strokeColor": "#1e1e24",
+              "face": "system-ui, -apple-system, sans-serif"
+            }
+          },
+          "edges": {
+            "color": {
+              "color": "rgba(129, 140, 248, 0.4)",
+              "highlight": "rgba(129, 140, 248, 0.8)",
+              "hover": "rgba(129, 140, 248, 0.8)"
+            },
+            "smooth": {
+              "type": "continuous"
+            }
+          },
           "physics": {
             "barnesHut": {
-              "gravitationalConstant": -2000,
-              "centralGravity": 0.3,
-              "springLength": 95,
-              "springConstant": 0.04
+              "gravitationalConstant": -4000,
+              "centralGravity": 0.15,
+              "springLength": 180,
+              "springConstant": 0.05
             },
             "solver": "barnesHut"
           }
@@ -154,8 +174,25 @@ class SessionGraphSkill:
 
         # Return HTML raw string
         html = net.generate_html()
-        # Remove margin/padding and overflow scrollbars to fit iframe perfectly
-        html = html.replace("body {", "body { margin: 0; padding: 0; overflow: hidden; ")
-        # Make the canvas fill the iframe height responsively
-        html = html.replace("height: 650px;", "height: 100vh;")
+        
+        # Inject style in head to remove margins and scrollbars
+        custom_css = """
+        <style>
+        body, html {
+          margin: 0 !important;
+          padding: 0 !important;
+          overflow: hidden !important;
+          width: 100% !important;
+          height: 100% !important;
+          background-color: #1e1e24 !important;
+        }
+        #mynetwork {
+          width: 100% !important;
+          height: 100vh !important;
+          border: none !important;
+        }
+        </style>
+        </head>
+        """
+        html = html.replace("</head>", custom_css)
         return html
