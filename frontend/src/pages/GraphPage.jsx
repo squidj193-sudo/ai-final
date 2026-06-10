@@ -17,6 +17,7 @@ const COMMUNITY_COLORS = [
 
 export default function GraphPage({ sessionId, activePage }) {
   const [rawData, setRawData] = useState({ nodes: [], edges: [] })
+  const [communityLabels, setCommunityLabels] = useState({})
   const [paperCount, setPaperCount] = useState(0)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -62,6 +63,7 @@ export default function GraphPage({ sessionId, activePage }) {
     try {
       const res = await getGraph(sessionId)
       setRawData(res)
+      setCommunityLabels(res.community_labels || {})
       setPaperCount(res.count)
     } catch (e) {
       setError(e.message)
@@ -287,9 +289,30 @@ export default function GraphPage({ sessionId, activePage }) {
               
               {/* 說明指標圖例 */}
               <div className="graph-legend-bar">
-                <span>🔴🟠🟡🟢 節點色彩：技術社群/流派</span>
-                <span>⚫ 大小：PageRank 影響力</span>
-                <span>➖ 連線粗細：語意相似百分比</span>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', alignItems: 'center' }}>
+                  <span style={{ fontWeight: 600, marginRight: '4px', whiteSpace: 'nowrap' }}>🏷️ 社群分類：</span>
+                  {Object.keys(communityLabels).length > 0 ? (
+                    Object.entries(communityLabels).map(([groupId, label]) => (
+                      <span key={groupId} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', whiteSpace: 'nowrap' }}>
+                        <span style={{
+                          display: 'inline-block',
+                          width: '10px',
+                          height: '10px',
+                          borderRadius: '50%',
+                          backgroundColor: COMMUNITY_COLORS[parseInt(groupId) % COMMUNITY_COLORS.length],
+                          flexShrink: 0
+                        }} />
+                        <span style={{ fontSize: '11px', color: '#cbd5e1' }}>{label}</span>
+                      </span>
+                    ))
+                  ) : (
+                    <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>載入中...</span>
+                  )}
+                </div>
+                <div style={{ display: 'flex', gap: '14px', marginTop: '4px', flexWrap: 'wrap' }}>
+                  <span>⚫ 大小：PageRank 影響力</span>
+                  <span>➖ 連線粗細：語意相似百分比</span>
+                </div>
               </div>
             </div>
 

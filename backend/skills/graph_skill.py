@@ -381,7 +381,36 @@ class SessionGraphSkill:
         except Exception:
             partition = {n: 0 for n in G.nodes()}
 
-        # 4. 組裝 Nodes
+        # 4.5 為每個社群產生代表性標籤（從該群組論文的合併文本中萃取 TF-IDF 最高的關鍵字）
+        community_labels = {}
+        try:
+            # 按群組收集論文的 combined_text
+            group_texts = {}
+            for idx in range(len(summaries)):
+                cid = partition.get(idx, 0)
+                if cid not in group_texts:
+                    group_texts[cid] = []
+                group_texts[cid].append(G.nodes[idx]["combined_text"])
+            
+            for cid, texts in group_texts.items():
+                merged = " ".join(texts)
+                tokens = ch_en_tokenizer(merged)
+                if tokens:
+                    # 用詞頻取前 2~3 個高頻詞作為社群標籤
+                    from collections import Counter
+                    freq = Counter(tokens)
+                    # 過濾掉太短或太通用的詞
+                    stopwords = {"the", "and", "for", "with", "from", "that", "this", "are", "was", "were", "has", "have", "been", "not", "but", "can", "also", "will", "our", "their", "which", "based", "using", "used", "results", "study", "research", "paper", "method", "approach", "proposed", "show", "than", "more", "most", "one", "two"}
+                    filtered = [(w, c) for w, c in freq.most_common(20) if w.lower() not in stopwords and len(w) >= 2]
+                    top_words = [w for w, _ in filtered[:3]]
+                    community_labels[cid] = " / ".join(top_words) if top_words else f"社群 {cid}"
+                else:
+                    community_labels[cid] = f"社群 {cid}"
+        except Exception:
+            for cid in set(partition.values()):
+                community_labels[cid] = f"社群 {cid}"
+
+        # 5. 組裝 Nodes
         nodes_data = []
         for idx, s in enumerate(summaries):
             pr = pagerank.get(idx, 0.0)
@@ -402,4 +431,4 @@ class SessionGraphSkill:
                 }
             })
 
-        return {"nodes": nodes_data, "edges": edges_data, "count": len(summaries)}
+        return {"nodes": nodes_data, "edges": edges_data, "count": len(summaries), "community_labels": community_labels}
