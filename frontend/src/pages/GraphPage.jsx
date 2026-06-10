@@ -80,6 +80,32 @@ export default function GraphPage({ sessionId }) {
               title="論文知識圖譜"
               sandbox="allow-scripts"
             />
+            <div className="graph-legend-overlay">
+              <h4>ℹ️ 圖譜指標說明</h4>
+              <ul>
+                <li>
+                  <span className="legend-icon">🔵</span>
+                  <div>
+                    <strong>節點大小 (Node Size)</strong>
+                    <p>代表該文獻在此領域的 <strong>PageRank 影響力</strong>。節點越大，代表其關聯性與核心度越高。</p>
+                  </div>
+                </li>
+                <li>
+                  <span className="legend-icon">➖</span>
+                  <div>
+                    <strong>連線粗細 (Edge Weight)</strong>
+                    <p>代表兩篇論文之間的 <strong>語意相似度</strong>。連線越粗，代表研究目的與方法越相近。</p>
+                  </div>
+                </li>
+                <li>
+                  <span className="legend-icon">🎨</span>
+                  <div>
+                    <strong>節點顏色 (Community)</strong>
+                    <p>代表 <strong>學術社群分組</strong>。同顏色的節點表示它們屬於相近的子領域或技術流派。</p>
+                  </div>
+                </li>
+              </ul>
+            </div>
           </div>
         )}
       </div>
