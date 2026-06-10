@@ -484,7 +484,35 @@ class AgentCore:
                     matrix = self._matrix_cache.get(session_id)
                     if not matrix:
                         return {"type": "chat", "content": "請先生成文獻比較矩陣，再要求分析研究方向。"}
-                    report = await self.direction_skill.analyze(matrix, role_context=full_context)
+                    
+                    # 計算圖譜指標
+                    from skills.graph_skill import SessionGraphSkill
+                    summaries = self.get_summaries(session_id)
+                    graph_insights_str = "尚無足夠文獻建立圖譜指標（至少需要 2 篇）。"
+                    if len(summaries) >= 2:
+                        try:
+                            g_skill = SessionGraphSkill()
+                            metrics = g_skill.compute_graph_metrics(summaries)
+                            
+                            infl_str = "\n".join([f"- **{x['title']}** (PageRank重要度: {x['pagerank']:.4f})" for x in metrics.get("influence", [])[:3]])
+                            
+                            comm_str = ""
+                            for cid, papers in metrics.get("communities", {}).items():
+                                comm_str += f"- 技術流派/社群 {cid}:\n"
+                                for p in papers:
+                                    comm_str += f"  * {p}\n"
+                            
+                            bridges = [x for x in metrics.get("bridges", []) if x['betweenness'] > 0]
+                            bridge_str = "\n".join([f"- **{x['title']}** (Betweenness橋接度: {x['betweenness']:.4f})" for x in bridges[:3]])
+                            if not bridge_str:
+                                bridge_str = "- 尚無顯著的跨領域橋接文獻。"
+                                
+                            graph_insights_str = f"1. 核心文獻排名 (PageRank):\n{infl_str}\n\n2. 技術社群分組 (Louvain):\n{comm_str}\n\n3. 跨領域橋接文獻 (Betweenness):\n{bridge_str}"
+                        except Exception as ge:
+                            logger.warning(f"Failed to compute graph metrics for directions: {ge}")
+                            graph_insights_str = "圖譜指標計算失敗，僅使用矩陣分析。"
+
+                    report = await self.direction_skill.analyze(matrix, role_context=full_context, graph_insights=graph_insights_str)
                     self._direction_cache[session_id] = report
                     self._save_session_data()
                     
