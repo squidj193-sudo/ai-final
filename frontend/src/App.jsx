@@ -33,6 +33,14 @@ export default function App() {
   const [summariesCount, setSummariesCount] = useState(0)
   const [matrixCached, setMatrixCached] = useState(false)
   const [directionCached, setDirectionCached] = useState(false)
+  const [showStepper, setShowStepper] = useState(() => {
+    const saved = localStorage.getItem('show_stepper')
+    return saved !== null ? JSON.parse(saved) : true
+  })
+
+  useEffect(() => {
+    localStorage.setItem('show_stepper', JSON.stringify(showStepper))
+  }, [showStepper])
 
   // 載入對話列表與初始化 Session
   useEffect(() => {
@@ -426,61 +434,70 @@ export default function App() {
             <h1>{NAV_ITEMS.find(n => n.id === activePage)?.label}</h1>
           </div>
           <div className="header-badges">
+            <button 
+              className={`stepper-toggle-btn ${showStepper ? 'active' : ''}`}
+              onClick={() => setShowStepper(!showStepper)}
+              title={showStepper ? "隱藏研究進度" : "顯示研究進度"}
+            >
+              {showStepper ? '📊 隱藏進度' : '📊 顯示進度'}
+            </button>
             <span className="badge badge-purple">{modelName}</span>
             <span className="badge badge-green">RAG 已啟用</span>
           </div>
         </header>
 
         {/* 研究進度指示器 */}
-        <div className="research-stepper glass-card">
-          <div className="stepper-title">🔬 當前會話研究進度：</div>
-          <div className="stepper-steps">
-            
-            {/* Step 1 */}
-            <div className={`step-item ${roleForm.large ? 'completed' : 'active'}`} onClick={() => setShowRoleModal(true)}>
-              <div className="step-number">🎯</div>
-              <div className="step-label">研究定位</div>
-              <div className="step-status-text">{roleForm.large ? '已設定' : '待定位'}</div>
+        {showStepper && (
+          <div className="research-stepper glass-card">
+            <div className="stepper-title">🔬 當前會話研究進度：</div>
+            <div className="stepper-steps">
+              
+              {/* Step 1 */}
+              <div className={`step-item ${roleForm.large ? 'completed' : 'active'}`} onClick={() => setShowRoleModal(true)}>
+                <div className="step-number">🎯</div>
+                <div className="step-label">研究定位</div>
+                <div className="step-status-text">{roleForm.large ? '已設定' : '待定位'}</div>
+              </div>
+              
+              <div className={`step-line ${summariesCount >= 2 ? 'completed' : ''}`} />
+
+              {/* Step 2 */}
+              <div className={`step-item ${summariesCount >= 2 ? 'completed' : (summariesCount === 1 || roleForm.large) ? 'active' : 'pending'}`} onClick={() => setActivePage('chat')}>
+                <div className="step-number">📚</div>
+                <div className="step-label">文獻採集</div>
+                <div className="step-status-text">已收錄 {summariesCount} 篇</div>
+              </div>
+
+              <div className={`step-line ${matrixCached ? 'completed' : ''}`} />
+
+              {/* Step 3 */}
+              <div className={`step-item ${matrixCached ? 'completed' : (summariesCount >= 2) ? 'active' : 'pending'}`} onClick={() => setActivePage('matrix')}>
+                <div className="step-number">📊</div>
+                <div className="step-label">對比矩陣</div>
+                <div className="step-status-text">{matrixCached ? '已生成' : '待生成'}</div>
+              </div>
+
+              <div className={`step-line ${summariesCount >= 2 ? 'completed' : ''}`} />
+
+              {/* Step 4 */}
+              <div className={`step-item ${summariesCount >= 2 ? 'completed' : summariesCount === 1 ? 'active' : 'pending'}`} onClick={() => setActivePage('graph')}>
+                <div className="step-number">🕸️</div>
+                <div className="step-label">知識圖譜</div>
+                <div className="step-status-text">{summariesCount >= 2 ? '已建構' : '文獻不足'}</div>
+              </div>
+
+              <div className={`step-line ${directionCached ? 'completed' : ''}`} />
+
+              {/* Step 5 */}
+              <div className={`step-item ${directionCached ? 'completed' : matrixCached ? 'active' : 'pending'}`} onClick={() => setActivePage('direction')}>
+                <div className="step-number">🧭</div>
+                <div className="step-label">課題建議</div>
+                <div className="step-status-text">{directionCached ? '已分析' : '待分析'}</div>
+              </div>
+
             </div>
-            
-            <div className={`step-line ${summariesCount >= 2 ? 'completed' : ''}`} />
-
-            {/* Step 2 */}
-            <div className={`step-item ${summariesCount >= 2 ? 'completed' : (summariesCount === 1 || roleForm.large) ? 'active' : 'pending'}`} onClick={() => setActivePage('chat')}>
-              <div className="step-number">📚</div>
-              <div className="step-label">文獻採集</div>
-              <div className="step-status-text">已收錄 {summariesCount} 篇</div>
-            </div>
-
-            <div className={`step-line ${matrixCached ? 'completed' : ''}`} />
-
-            {/* Step 3 */}
-            <div className={`step-item ${matrixCached ? 'completed' : (summariesCount >= 2) ? 'active' : 'pending'}`} onClick={() => setActivePage('matrix')}>
-              <div className="step-number">📊</div>
-              <div className="step-label">對比矩陣</div>
-              <div className="step-status-text">{matrixCached ? '已生成' : '待生成'}</div>
-            </div>
-
-            <div className={`step-line ${summariesCount >= 2 ? 'completed' : ''}`} />
-
-            {/* Step 4 */}
-            <div className={`step-item ${summariesCount >= 2 ? 'completed' : summariesCount === 1 ? 'active' : 'pending'}`} onClick={() => setActivePage('graph')}>
-              <div className="step-number">🕸️</div>
-              <div className="step-label">知識圖譜</div>
-              <div className="step-status-text">{summariesCount >= 2 ? '已建構' : '文獻不足'}</div>
-            </div>
-
-            <div className={`step-line ${directionCached ? 'completed' : ''}`} />
-
-            {/* Step 5 */}
-            <div className={`step-item ${directionCached ? 'completed' : matrixCached ? 'active' : 'pending'}`} onClick={() => setActivePage('direction')}>
-              <div className="step-number">🧭</div>
-              <div className="step-label">課題建議</div>
-              <div className="step-status-text">{directionCached ? '已分析' : '待分析'}</div>
-            </div>
-
           </div>
-        </div>
+        )}
 
         {/* 頁面內容 */}
         <div className="page-container">
