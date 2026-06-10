@@ -186,8 +186,8 @@ def get_graph(session_id: str):
     from skills.graph_skill import SessionGraphSkill
     summaries = agent.get_summaries(session_id)
     skill = SessionGraphSkill()
-    html = skill.generate_graph_html(summaries)
-    return {"html": html, "count": len(summaries)}
+    data = skill.get_graph_data(summaries)
+    return data
 
 
 class ConversationsRequest(BaseModel):

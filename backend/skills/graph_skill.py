@@ -306,3 +306,90 @@ class SessionGraphSkill:
             "communities": communities_map,
             "bridges": bridge_list
         }
+
+    def get_graph_data(self, summaries: list) -> dict:
+        """
+        計算並回傳論文知識圖譜的 Nodes 與 Edges 結構化 JSON 資料
+        """
+        if not summaries:
+            return {"nodes": [], "edges": [], "count": 0}
+
+        # 1. 建立 NetworkX Graph
+        G = nx.Graph()
+        for idx, s in enumerate(summaries):
+            title = s.get("title", "")
+            goal = s.get("research_goal", "")
+            findings = s.get("main_findings", "")
+            keywords = s.get("keywords", [])
+            keywords_str = " ".join(keywords) if isinstance(keywords, list) else str(keywords)
+            combined_text = f"{title} {keywords_str} {goal} {findings}"
+            G.add_node(idx, title=title, combined_text=combined_text)
+
+        # 2. 計算 TF-IDF 與 Cosine 相似度
+        edges_data = []
+        if len(summaries) > 1:
+            corpus = [G.nodes[i]["combined_text"] for i in range(len(summaries))]
+            try:
+                import re
+                def ch_en_tokenizer(text):
+                    return re.findall(r'[a-zA-Z0-9\-_]+|[\u4e00-\u9fff]', text.lower())
+
+                vectorizer = TfidfVectorizer(tokenizer=ch_en_tokenizer, token_pattern=None)
+                tfidf = vectorizer.fit_transform(corpus)
+                sim_matrix = cosine_similarity(tfidf)
+
+                # 提取共同關鍵字，並建立所有潛在 edges (包含微弱關聯，供前端拉桿動態過濾)
+                for i in range(len(summaries)):
+                    for j in range(i + 1, len(summaries)):
+                        sim = float(sim_matrix[i, j])
+                        if sim > 0.02: # 放寬相似度，讓前端滑桿有更大的調控空間
+                            row_i = tfidf[i].toarray()[0]
+                            row_j = tfidf[j].toarray()[0]
+                            overlap = row_i * row_j
+                            feature_names = vectorizer.get_feature_names_out()
+                            top_indices = np.argsort(overlap)[::-1]
+                            common = [feature_names[idx] for idx in top_indices if overlap[idx] > 0][:5]
+                            
+                            edges_data.append({
+                                "from": i,
+                                "to": j,
+                                "weight": sim,
+                                "common_terms": common
+                            })
+                            G.add_edge(i, j, weight=sim)
+            except Exception as e:
+                print(f"Error computing graph data similarities: {e}")
+
+        # 3. 計算重要度指標與社群群組
+        try:
+            pagerank = nx.pagerank(G, weight="weight")
+        except Exception:
+            pagerank = {n: 1.0/len(G) for n in G.nodes()}
+
+        try:
+            partition = community_louvain.best_partition(G)
+        except Exception:
+            partition = {n: 0 for n in G.nodes()}
+
+        # 4. 組裝 Nodes
+        nodes_data = []
+        for idx, s in enumerate(summaries):
+            pr = pagerank.get(idx, 0.0)
+            cluster_id = partition.get(idx, 0)
+            title = s.get("title", "")
+            nodes_data.append({
+                "id": idx,
+                "label": title[:22] + "..." if len(title) > 22 else title,
+                "title": title,
+                "authors": ", ".join(s.get("authors", [])) if isinstance(s.get("authors", []), list) else str(s.get("authors", "")),
+                "year": s.get("year") or "未知",
+                "pagerank": pr,
+                "group": cluster_id,
+                "details": {
+                    "research_goal": s.get("research_goal", "無"),
+                    "main_findings": s.get("main_findings", "無"),
+                    "limitations": s.get("limitations", "無")
+                }
+            })
+
+        return {"nodes": nodes_data, "edges": edges_data, "count": len(summaries)}

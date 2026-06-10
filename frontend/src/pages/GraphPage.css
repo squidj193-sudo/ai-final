@@ -1,5 +1,5 @@
 /* ========================================
-   Graph Page — 論文圖譜頁樣式
+   Graph Page — 論文圖譜頁樣式 (人類友善版)
    ======================================== */
 
 .graph-page {
@@ -13,18 +13,20 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 24px 28px 16px;
+  padding: 16px 24px 12px;
   flex-shrink: 0;
+  border-bottom: 1px solid var(--border-subtle);
+  background: rgba(10, 14, 26, 0.4);
 }
 
 .graph-header h1 {
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 700;
-  margin-bottom: 4px;
+  margin-bottom: 2px;
 }
 
 .graph-header p {
-  font-size: 13px;
+  font-size: 12px;
   color: var(--text-secondary);
 }
 
@@ -39,162 +41,335 @@
   background: rgba(99, 102, 241, 0.12);
   border: 1px solid rgba(99, 102, 241, 0.25);
   border-radius: 20px;
-  font-size: 12px;
+  font-size: 11px;
   color: #a5b4fc;
   font-weight: 600;
 }
 
-.graph-content {
+.graph-content-wrapper {
   flex: 1;
   overflow: hidden;
-  padding: 0 28px 24px;
+  padding: 16px 24px 20px;
   display: flex;
-  flex-direction: column;
-}
-
-.graph-frame-wrapper {
   position: relative;
-  flex: 1;
-  border-radius: var(--radius-lg);
-  overflow: hidden;
-  padding: 0;
 }
 
-.graph-iframe {
+/* 雙欄主版面 */
+.graph-main-layout {
+  display: flex;
   width: 100%;
   height: 100%;
-  border: none;
-  border-radius: var(--radius-lg);
-  background: #1e1e24;
-  min-height: 500px;
+  gap: 16px;
 }
 
-.graph-legend-overlay {
-  position: absolute;
-  bottom: 20px;
-  left: 20px;
-  background: rgba(30, 30, 36, 0.85);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: var(--radius-md);
-  padding: 16px;
-  max-width: 320px;
-  color: var(--text-primary);
-  box-shadow: var(--shadow-lg);
-  z-index: 10;
-  transition: all 0.3s ease;
-  pointer-events: auto; /* Allow users to hover to make it fully opaque */
-  opacity: 0.9;
-}
-
-.graph-legend-overlay:hover {
-  background: rgba(30, 30, 36, 0.95);
-  opacity: 1;
-  border-color: rgba(255, 255, 255, 0.15);
-}
-
-.graph-legend-overlay h4 {
-  font-size: 13px;
-  font-weight: 700;
-  margin-top: 0;
-  margin-bottom: 12px;
-  color: #a5b4fc;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  padding-bottom: 8px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.graph-legend-overlay ul {
-  list-style: none;
-  padding: 0;
-  margin: 0;
+/* 左側：圖譜畫布與控制區 */
+.graph-canvas-container {
+  flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  position: relative;
+  overflow: hidden;
+  background: rgba(10, 14, 26, 0.2);
 }
 
-.graph-legend-overlay li {
+/* 控制面板 */
+.graph-controls-panel {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: rgba(255, 255, 255, 0.01);
   display: flex;
-  align-items: flex-start;
-  gap: 10px;
+  align-items: center;
+  z-index: 5;
 }
 
-.graph-legend-overlay .legend-icon {
-  font-size: 14px;
-  line-height: 1.4;
-  flex-shrink: 0;
+.control-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
 }
 
-.graph-legend-overlay strong {
+.control-group label {
   font-size: 12px;
-  display: block;
-  margin-bottom: 2px;
+  font-weight: 600;
   color: var(--text-primary);
+  white-space: nowrap;
 }
 
-.graph-legend-overlay p {
+.control-group label span {
+  color: #f472b6;
+  font-weight: 700;
+  font-size: 13px;
+  display: inline-block;
+  min-width: 32px;
+}
+
+.control-group input[type="range"] {
+  flex: 1;
+  max-width: 280px;
+  height: 5px;
+  border-radius: 99px;
+  outline: none;
+  background: rgba(255, 255, 255, 0.1);
+  accent-color: #6366f1;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.control-help-text {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* Vis.js 畫布容器 */
+.graph-canvas {
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  background: #090d16; /* 配合深色玻璃主調 */
+}
+
+/* 底端圖例條 */
+.graph-legend-bar {
+  padding: 8px 16px;
+  border-top: 1px solid var(--border-subtle);
+  background: rgba(255, 255, 255, 0.01);
+  display: flex;
+  justify-content: center;
+  gap: 20px;
   font-size: 11px;
   color: var(--text-secondary);
-  line-height: 1.45;
-  margin: 0;
 }
 
-/* Empty / Loading states */
-.empty-state {
+/* 右側：詳細資訊邊欄 (Sidebar Inspector) */
+.graph-inspector-sidebar {
+  width: 320px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  border-left: 1px solid var(--border-subtle);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  background: rgba(15, 22, 41, 0.7);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.4);
+}
+
+.graph-inspector-sidebar.active {
+  border-color: rgba(244, 114, 182, 0.25);
+  box-shadow: 0 0 20px rgba(244, 114, 182, 0.08);
+}
+
+/* 空白狀態 */
+.sidebar-empty {
   flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   text-align: center;
-  gap: 12px;
-  padding: 40px;
+  padding: 24px;
   color: var(--text-secondary);
 }
 
-.empty-state h3 {
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin-top: 8px;
-}
-
-.empty-state p {
+.sidebar-empty h4 {
   font-size: 13px;
-  line-height: 1.7;
-  max-width: 380px;
+  color: var(--text-primary);
+  margin-bottom: 6px;
 }
 
-.graph-hero {
-  position: relative;
-  display: inline-block;
+.sidebar-empty p {
+  font-size: 11px;
+  line-height: 1.6;
 }
 
-.hero-glow {
-  position: absolute;
-  inset: -20px;
-  background: radial-gradient(circle, rgba(99,102,241,0.3) 0%, transparent 70%);
+/* 內容狀態 */
+.sidebar-content {
+  padding: 20px;
+}
+
+.sidebar-category {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #a5b4fc;
+  margin-bottom: 8px;
+}
+
+.paper-title {
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.5;
+  color: var(--text-primary);
+  margin-bottom: 12px;
+}
+
+.paper-meta {
+  font-size: 11px;
+  color: var(--text-secondary);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.divider {
+  border: 0;
+  height: 1px;
+  background: var(--border-subtle);
+  margin: 16px 0;
+}
+
+.section-block {
+  margin-bottom: 16px;
+}
+
+.section-block h4 {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.section-block p {
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  text-align: justify;
+}
+
+/* 關聯百分比環形計 */
+.similarity-gauge {
+  text-align: center;
+  padding: 12px 0;
+}
+
+.gauge-number {
+  font-size: 28px;
+  font-weight: 800;
+  color: #f472b6;
+  text-shadow: 0 0 10px rgba(244, 114, 182, 0.4);
+}
+
+.gauge-label {
+  font-size: 10px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+/* 關鍵字標籤 */
+.tag-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tag-container .badge {
+  font-size: 10px;
+  padding: 2px 8px;
+}
+
+/* 關聯節點顯示 */
+.edge-nodes-info {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.node-info-box {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dot-indicator {
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
-  pointer-events: none;
+  flex-shrink: 0;
 }
 
-.loading-state {
+.node-title-sub {
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-secondary);
+}
+
+.arrow-down {
+  text-align: center;
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.sidebar-help-alert {
+  margin-top: 24px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: rgba(99, 102, 241, 0.05);
+  border: 1px solid rgba(99, 102, 241, 0.15);
+}
+
+.sidebar-help-alert p {
+  font-size: 10.5px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+/* 載入與錯誤狀態 */
+.loading-state, .empty-state {
   flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  text-align: center;
   gap: 16px;
+  min-height: 400px;
   color: var(--text-secondary);
 }
 
-.loading-state p {
-  font-size: 14px;
+.loading-state p { font-size: 14px; }
+.loading-sub { font-size: 11px !important; color: var(--text-muted) !important; }
+
+.empty-state h3 {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
 }
 
-.loading-sub {
-  font-size: 12px !important;
-  color: var(--text-muted) !important;
+.empty-state p {
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.graph-hero { position: relative; }
+.hero-glow {
+  position: absolute;
+  inset: -20px;
+  background: radial-gradient(circle, rgba(99,102,241,0.25) 0%, transparent 70%);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+/* 響應式調整 */
+@media (max-width: 992px) {
+  .graph-main-layout {
+    flex-direction: column;
+  }
+  .graph-inspector-sidebar {
+    width: 100%;
+    height: 200px;
+    border-left: none;
+    border-top: 1px solid var(--border-subtle);
+  }
 }
