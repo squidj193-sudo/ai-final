@@ -43,16 +43,44 @@ class SessionGraphSkill:
         if len(summaries) > 1:
             corpus = [G.nodes[i]["combined_text"] for i in range(len(summaries))]
             try:
-                vectorizer = TfidfVectorizer(stop_words="english")
+                import re
+                def ch_en_tokenizer(text):
+                    # Extract English words/numbers and individual Chinese characters
+                    return re.findall(r'[a-zA-Z0-9\-_]+|[\u4e00-\u9fff]', text.lower())
+
+                vectorizer = TfidfVectorizer(tokenizer=ch_en_tokenizer, token_pattern=None)
                 tfidf = vectorizer.fit_transform(corpus)
                 sim_matrix = cosine_similarity(tfidf)
                 
-                # Add edges
+                # Find maximum similarity value in the matrix to decide a dynamic threshold
+                max_sim = 0.0
+                for i in range(len(summaries)):
+                    for j in range(i + 1, len(summaries)):
+                        max_sim = max(max_sim, float(sim_matrix[i, j]))
+                
+                # Dynamic threshold: pre-selected 0.12 or 70% of max similarity if it's too low
+                threshold = min(0.12, max_sim * 0.75) if max_sim > 0.05 else 0.12
+                
+                # Add edges above threshold
                 for i in range(len(summaries)):
                     for j in range(i + 1, len(summaries)):
                         sim = float(sim_matrix[i, j])
-                        if sim > 0.15:  # Lower threshold for local session papers
+                        if sim >= threshold:
                             G.add_edge(i, j, weight=sim)
+                
+                # Ensure every node has at least one connection to its most similar peer (if any similarity > 0.02)
+                for i in range(len(summaries)):
+                    if G.degree(i) == 0:
+                        best_j = -1
+                        best_sim = 0.0
+                        for j in range(len(summaries)):
+                            if i != j:
+                                sim = float(sim_matrix[i, j])
+                                if sim > best_sim:
+                                    best_sim = sim
+                                    best_j = j
+                        if best_j != -1 and best_sim > 0.02:
+                            G.add_edge(i, best_j, weight=best_sim)
             except Exception as e:
                 print(f"Error computing session paper similarity: {e}")
 
@@ -125,4 +153,9 @@ class SessionGraphSkill:
         """)
 
         # Return HTML raw string
-        return net.generate_html()
+        html = net.generate_html()
+        # Remove margin/padding and overflow scrollbars to fit iframe perfectly
+        html = html.replace("body {", "body { margin: 0; padding: 0; overflow: hidden; ")
+        # Make the canvas fill the iframe height responsively
+        html = html.replace("height: 650px;", "height: 100vh;")
+        return html

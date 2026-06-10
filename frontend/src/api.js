@@ -113,3 +113,10 @@ export async function saveChatHistory(sessionId, history) {
   if (!res.ok) throw new Error(await res.text())
   return res.json()
 }
+
+export async function getGraph(sessionId) {
+  const res = await fetch(`${BASE_URL}/graph/${sessionId}`)
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+

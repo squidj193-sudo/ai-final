@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import ChatPage from './pages/ChatPage.jsx'
 import SummaryPage from './pages/SummaryPage.jsx'
 import MatrixPage from './pages/MatrixPage.jsx'
+import GraphPage from './pages/GraphPage.jsx'
 import DirectionPage from './pages/DirectionPage.jsx'
 import { updateRoleState, getRoleState, getConversations, saveConversations } from './api.js'
 import { v4 as uuidv4 } from 'uuid'
@@ -11,6 +12,7 @@ const NAV_ITEMS = [
   { id: 'chat',      icon: '💬', label: '對話搜尋' },
   { id: 'summary',   icon: '📋', label: '論文摘要' },
   { id: 'matrix',    icon: '📊', label: '比較矩陣' },
+  { id: 'graph',     icon: '🕸️', label: '論文圖譜' },
   { id: 'direction', icon: '🧭', label: '研究方向' },
 ]
 
@@ -147,6 +149,7 @@ export default function App() {
       case 'chat':      return <ChatPage key={sessionId} sessionId={sessionId} onStateUpdate={refreshState} />
       case 'summary':   return <SummaryPage key={summaryKey} sessionId={sessionId} />
       case 'matrix':    return <MatrixPage sessionId={sessionId} />
+      case 'graph':     return <GraphPage sessionId={sessionId} />
       case 'direction': return <DirectionPage sessionId={sessionId} />
       default:          return null
     }
