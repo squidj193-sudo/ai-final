@@ -1,0 +1,92 @@
+{
+  "perovskite efficiency novel cell 1781072914__limit_3__year_all": [
+    {
+      "paper_id": "a0d30a9dbc63bcb7458eb2ae8d34276c35c27419",
+      "title": "Introducing a Sustainable Novel Double Absorber Perovskite Solar Cell Using CsSnI3 and La2NiMnO6: A Strategy to Achieve 32.73% Efficiency",
+      "authors": [
+        "Basra Sultana",
+        "M. Mia",
+        "L. Farhat",
+        "Ameni Brahmia",
+        "O. Saidani",
+        "M. Rahman"
+      ],
+      "year": 2025,
+      "abstract": "This study focuses on improving device performance by introducing an innovative double perovskite active layer (DPAL). The proposed design incorporates a DPAL made of CsSnI3 and La2NiMnO6 (LNMO), combined with a tungsten disulfide (WS2) electron transport layer (ETL). Using the Solar Cell Capacitance Simulator Structures (SCAPS‐1D) software tool, a novel double absorber solar cell was computationally analyzed. Comparative results show that the DPAL‐based perovskite solar cell (PSC) outperforms single active layer PSCs. The study also investigates how factors, such as active layer thickness, defect density, and interface defects affect performance, along with the influence of temperature and doping density on efficiency. The proposed design achieves a power conversion efficiency (PCE) of 32.73%, with a short‐circuit current density (JSC) of 36.51 mA/cm2, an open‐circuit voltage (VOC) of 1.05 V, and a fill factor (FF) of 85.28%. In comparison, single absorber designs based on LNMO and CsSnI3 yield PCEs of 20.26% and 30.57%, respectively. This DPAL‐based solar cell shows great potential for advancing highly efficient PSC development in the future.",
+      "url": "https://www.semanticscholar.org/paper/a0d30a9dbc63bcb7458eb2ae8d34276c35c27419",
+      "doi": "10.1155/er/6693434"
+    },
+    {
+      "paper_id": "adc267e9e40449534d37b92ead1e26440eaeb3f9",
+      "title": "Boosting efficiency of eco-friendly perovskite solar cell through optimization of novel charge transport layers",
+      "authors": [
+        "Muhammad Ismail",
+        "Muhammad Noman",
+        "Shayan Tariq Jan",
+        "Muhammad Imran"
+      ],
+      "year": 2023,
+      "abstract": "Formamidinium tin triiodide (FASnI3) is a suitable candidate for the absorber layer in perovskite solar cells (PSC) because of its non-toxicity, narrow band gap, thermal stability and high carrier mobility. This study focuses on the analysis and improvement in the performance of FASnI3-based PSCs using various inorganic charge transport materials. The copper-based materials such as Cu2O, CuAlO2, CuSCN and CuSbS2 are introduced as hole transport layers due to their earth abundance, ease of manufacturing, high charge mobilities and chemical stability. Similarly, fullerene derivates (PCBM and C60) are deployed as electron transport layers due to their mechanical strength, thermal conductivity and stability. The effect of these materials on optical absorption, quantum efficiency, energy band alignment, band offsets, electric field and recombination are studied in detail. The reasons for the low performance of the cell are identified and improved through design optimization. The PSC performance is analysed in both inverted and conventional architecture. Among all the structures, the best result is achieved through ITO/CuSCN/FASnI3/C60/Al with an efficiency of 27.26%, Voc of 1.08 V, Jsc of 29.5 mAcm−2 and FF of 85.6%.",
+      "url": "https://www.semanticscholar.org/paper/adc267e9e40449534d37b92ead1e26440eaeb3f9",
+      "doi": "10.1098/rsos.230331"
+    },
+    {
+      "paper_id": "e4bd46faca18815c7da033cfd917377288fd0df3",
+      "title": "Design of a Novel Lead-Free Perovskite Solar Cell for 17.83% Efficiency",
+      "authors": [
+        "S. A. Moiz",
+        "A. Alahmadi",
+        "A. Aljohani"
+      ],
+      "year": 2021,
+      "abstract": "Lead halide perovskite solar cell shows an enormous potential for the next generation renewable energy, but it also offers some environmental hazards due to their inherent lead-based toxicity. On the other hand, if lead based perovskite is efficiently replaced by other non-toxic metal based perovskite then their toxicity can remarkably be reduced for photovoltaic applications. In this study, a novel lead free compound Cs2TiBr6 based photovoltaic device is proposed as Au/PEDOT:PSS/ Cs2TiBr6/TiO2/AZO, where each layer is optimized and analysed through a series of simulations for maximum power-conversion efficiency using SCAPS-1D software. Comprehensive optimization of the thickness and doping density of each layer leads to the maximum power-conversion efficiency up to 17.83% for our proposed solar cell. Therefore, we believe that these results will provide a route heading towards the progress of lead-free and highly efficient perovskite photovoltaic devices.",
+      "url": "https://www.semanticscholar.org/paper/e4bd46faca18815c7da033cfd917377288fd0df3",
+      "doi": "10.1109/ACCESS.2021.3070112"
+    }
+  ],
+  "perovskite efficiency novel cell 1781072946__limit_3__year_all": [
+    {
+      "paper_id": "a0d30a9dbc63bcb7458eb2ae8d34276c35c27419",
+      "title": "Introducing a Sustainable Novel Double Absorber Perovskite Solar Cell Using CsSnI3 and La2NiMnO6: A Strategy to Achieve 32.73% Efficiency",
+      "authors": [
+        "Basra Sultana",
+        "M. Mia",
+        "L. Farhat",
+        "Ameni Brahmia",
+        "O. Saidani",
+        "M. Rahman"
+      ],
+      "year": 2025,
+      "abstract": "This study focuses on improving device performance by introducing an innovative double perovskite active layer (DPAL). The proposed design incorporates a DPAL made of CsSnI3 and La2NiMnO6 (LNMO), combined with a tungsten disulfide (WS2) electron transport layer (ETL). Using the Solar Cell Capacitance Simulator Structures (SCAPS‐1D) software tool, a novel double absorber solar cell was computationally analyzed. Comparative results show that the DPAL‐based perovskite solar cell (PSC) outperforms single active layer PSCs. The study also investigates how factors, such as active layer thickness, defect density, and interface defects affect performance, along with the influence of temperature and doping density on efficiency. The proposed design achieves a power conversion efficiency (PCE) of 32.73%, with a short‐circuit current density (JSC) of 36.51 mA/cm2, an open‐circuit voltage (VOC) of 1.05 V, and a fill factor (FF) of 85.28%. In comparison, single absorber designs based on LNMO and CsSnI3 yield PCEs of 20.26% and 30.57%, respectively. This DPAL‐based solar cell shows great potential for advancing highly efficient PSC development in the future.",
+      "url": "https://www.semanticscholar.org/paper/a0d30a9dbc63bcb7458eb2ae8d34276c35c27419",
+      "doi": "10.1155/er/6693434"
+    },
+    {
+      "paper_id": "adc267e9e40449534d37b92ead1e26440eaeb3f9",
+      "title": "Boosting efficiency of eco-friendly perovskite solar cell through optimization of novel charge transport layers",
+      "authors": [
+        "Muhammad Ismail",
+        "Muhammad Noman",
+        "Shayan Tariq Jan",
+        "Muhammad Imran"
+      ],
+      "year": 2023,
+      "abstract": "Formamidinium tin triiodide (FASnI3) is a suitable candidate for the absorber layer in perovskite solar cells (PSC) because of its non-toxicity, narrow band gap, thermal stability and high carrier mobility. This study focuses on the analysis and improvement in the performance of FASnI3-based PSCs using various inorganic charge transport materials. The copper-based materials such as Cu2O, CuAlO2, CuSCN and CuSbS2 are introduced as hole transport layers due to their earth abundance, ease of manufacturing, high charge mobilities and chemical stability. Similarly, fullerene derivates (PCBM and C60) are deployed as electron transport layers due to their mechanical strength, thermal conductivity and stability. The effect of these materials on optical absorption, quantum efficiency, energy band alignment, band offsets, electric field and recombination are studied in detail. The reasons for the low performance of the cell are identified and improved through design optimization. The PSC performance is analysed in both inverted and conventional architecture. Among all the structures, the best result is achieved through ITO/CuSCN/FASnI3/C60/Al with an efficiency of 27.26%, Voc of 1.08 V, Jsc of 29.5 mAcm−2 and FF of 85.6%.",
+      "url": "https://www.semanticscholar.org/paper/adc267e9e40449534d37b92ead1e26440eaeb3f9",
+      "doi": "10.1098/rsos.230331"
+    },
+    {
+      "paper_id": "e4bd46faca18815c7da033cfd917377288fd0df3",
+      "title": "Design of a Novel Lead-Free Perovskite Solar Cell for 17.83% Efficiency",
+      "authors": [
+        "S. A. Moiz",
+        "A. Alahmadi",
+        "A. Aljohani"
+      ],
+      "year": 2021,
+      "abstract": "Lead halide perovskite solar cell shows an enormous potential for the next generation renewable energy, but it also offers some environmental hazards due to their inherent lead-based toxicity. On the other hand, if lead based perovskite is efficiently replaced by other non-toxic metal based perovskite then their toxicity can remarkably be reduced for photovoltaic applications. In this study, a novel lead free compound Cs2TiBr6 based photovoltaic device is proposed as Au/PEDOT:PSS/ Cs2TiBr6/TiO2/AZO, where each layer is optimized and analysed through a series of simulations for maximum power-conversion efficiency using SCAPS-1D software. Comprehensive optimization of the thickness and doping density of each layer leads to the maximum power-conversion efficiency up to 17.83% for our proposed solar cell. Therefore, we believe that these results will provide a route heading towards the progress of lead-free and highly efficient perovskite photovoltaic devices.",
+      "url": "https://www.semanticscholar.org/paper/e4bd46faca18815c7da033cfd917377288fd0df3",
+      "doi": "10.1109/ACCESS.2021.3070112"
+    }
+  ]
+}

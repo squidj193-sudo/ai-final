@@ -27,6 +27,8 @@ class SearchSkill:
         self.cache_path.parent.mkdir(parents=True, exist_ok=True)
         self._cache = {}  # 查詢結果本機快取
         self._load_cache()
+        # Initialize a single persistent client to reuse TCP connection pool
+        self.client = httpx.AsyncClient(timeout=15)
 
     def _load_cache(self):
         if self.cache_path.exists():
@@ -85,30 +87,30 @@ class SearchSkill:
         import random
         data = None
         last_error = None
-        async with httpx.AsyncClient(timeout=15) as client:
-            max_retries = 3  # 適度減少最大重試次數，防止超長延遲
-            for attempt in range(max_retries):
-                try:
-                    resp = await client.get(
-                        self.SEMANTIC_SCHOLAR_URL, params=params, headers=self.headers
-                    )
-                    resp.raise_for_status()
-                    data = resp.json()
-                    break
-                except httpx.HTTPStatusError as e:
-                    last_error = e
-                    if e.response.status_code == 429 and attempt < max_retries - 1:
-                        import asyncio
-                        # Exponential backoff: 1s, 2s, 4s
-                        sleep_time = (2 ** attempt) + random.uniform(0.1, 0.5)
-                        await asyncio.sleep(sleep_time)
-                        continue
-                except (httpx.RequestError, Exception) as e:
-                    last_error = e
-                    if attempt < max_retries - 1:
-                        import asyncio
-                        await asyncio.sleep(1 + attempt)
-                        continue
+        client = self.client
+        max_retries = 3  # 適度減少最大重試次數，防止超長延遲
+        for attempt in range(max_retries):
+            try:
+                resp = await client.get(
+                    self.SEMANTIC_SCHOLAR_URL, params=params, headers=self.headers
+                )
+                resp.raise_for_status()
+                data = resp.json()
+                break
+            except httpx.HTTPStatusError as e:
+                last_error = e
+                if e.response.status_code == 429 and attempt < max_retries - 1:
+                    import asyncio
+                    # Exponential backoff: 1s, 2s, 4s
+                    sleep_time = (2 ** attempt) + random.uniform(0.1, 0.5)
+                    await asyncio.sleep(sleep_time)
+                    continue
+            except (httpx.RequestError, Exception) as e:
+                last_error = e
+                if attempt < max_retries - 1:
+                    import asyncio
+                    await asyncio.sleep(1 + attempt)
+                    continue
 
         # 若 API 完全超時或回報 429 失敗，嘗試回傳本機相似快取（備用方案）
         if data is None:
@@ -164,24 +166,24 @@ class SearchSkill:
             "fields": "paperId,title,authors,year,abstract,externalIds,url",
         }
         
-        async with httpx.AsyncClient(timeout=15) as client:
-            try:
-                resp = await client.get(url, params=params, headers=self.headers)
-                if resp.status_code == 200:
-                    item = resp.json()
-                    return PaperResult(
-                        paper_id=item.get("paperId", "") or "",
-                        title=item.get("title", "（無標題）"),
-                        authors=[a.get("name", "") for a in item.get("authors", [])],
-                        year=item.get("year"),
-                        abstract=item.get("abstract"),
-                        url=item.get("url"),
-                        doi=item.get("externalIds", {}).get("DOI"),
-                    )
-            except Exception as e:
-                import logging
-                logger = logging.getLogger("search_skill")
-                logger.warning(f"Failed to fetch paper by id/url '{paper_id}': {e}")
+        client = self.client
+        try:
+            resp = await client.get(url, params=params, headers=self.headers)
+            if resp.status_code == 200:
+                item = resp.json()
+                return PaperResult(
+                    paper_id=item.get("paperId", "") or "",
+                    title=item.get("title", "（無標題）"),
+                    authors=[a.get("name", "") for a in item.get("authors", [])],
+                    year=item.get("year"),
+                    abstract=item.get("abstract"),
+                    url=item.get("url"),
+                    doi=item.get("externalIds", {}).get("DOI"),
+                )
+        except Exception as e:
+            import logging
+            logger = logging.getLogger("search_skill")
+            logger.warning(f"Failed to fetch paper by id/url '{paper_id}': {e}")
         return None
 
 

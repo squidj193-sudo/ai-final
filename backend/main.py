@@ -71,9 +71,7 @@ class ChatRequest(BaseModel):
 
 class RoleStateRequest(BaseModel):
     session_id: str
-    large_direction: str | None = None
-    medium_direction: str | None = None
-    small_direction: str | None = None
+    research_direction: str | None = None
 
 
 # ─── API 端點 ─────────────────────────────────────────────────────────
@@ -167,9 +165,7 @@ def set_direction(session_id: str, req: DirectionRequest):
 def update_role_state(req: RoleStateRequest):
     state = agent.update_role_state(
         req.session_id,
-        large_direction=req.large_direction,
-        medium_direction=req.medium_direction,
-        small_direction=req.small_direction,
+        research_direction=req.research_direction,
     )
     return {"state": state}
 

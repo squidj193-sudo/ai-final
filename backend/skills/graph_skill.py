@@ -1,17 +1,11 @@
-import numpy as np
-import networkx as nx
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
-from pyvis.network import Network
-import community as community_louvain
-import jieba
 import re
 import logging
 
-# Disable jieba default console output logging to keep terminal output clean
-jieba.setLogLevel(logging.WARNING)
+# Lazy-loaded modules will be imported inside functions to speed up AgentCore startup time
 
 def ch_en_tokenizer(text):
+    import jieba
+    jieba.setLogLevel(logging.WARNING)
     if not text:
         return []
     words = jieba.lcut(text.lower())
@@ -37,6 +31,13 @@ class SessionGraphSkill:
         """
         Generates an interactive PyVis HTML representation of the session's papers.
         """
+        import networkx as nx
+        import numpy as np
+        from sklearn.feature_extraction.text import TfidfVectorizer
+        from sklearn.metrics.pairwise import cosine_similarity
+        from pyvis.network import Network
+        import community as community_louvain
+
         if not summaries:
             return "<h3>目前尚無已分析的論文，請先在「對話搜尋」上傳 PDF 或搜尋分析論文。</h3>"
 
@@ -224,6 +225,11 @@ class SessionGraphSkill:
         """
         計算圖的 PageRank (核心論文重要度)、Betweenness Centrality (跨流派樞紐)、與 Louvain 社群 (技術流派)
         """
+        import networkx as nx
+        import numpy as np
+        from sklearn.feature_extraction.text import TfidfVectorizer
+        from sklearn.metrics.pairwise import cosine_similarity
+        import community as community_louvain
 
         if not summaries:
             return {"influence": [], "communities": {}, "bridges": []}
@@ -326,6 +332,12 @@ class SessionGraphSkill:
         """
         計算並回傳論文知識圖譜的 Nodes 與 Edges 結構化 JSON 資料
         """
+        import networkx as nx
+        import numpy as np
+        from sklearn.feature_extraction.text import TfidfVectorizer
+        from sklearn.metrics.pairwise import cosine_similarity
+        import community as community_louvain
+
         if not summaries:
             return {"nodes": [], "edges": [], "count": 0}
 
