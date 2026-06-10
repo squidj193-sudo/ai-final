@@ -381,15 +381,15 @@ class AgentCore:
             medium = clean_dir(medium)
             small = clean_dir(small)
             
-            if large or medium or small:
+            if large:
                 self.state_skill.update_state(
                     session_id,
-                    large_direction=large or current_state.large_direction,
-                    medium_direction=medium or current_state.medium_direction,
-                    small_direction=small or current_state.small_direction
+                    large_direction=large,
+                    medium_direction=None,
+                    small_direction=None
                 )
                 self._save_session_data()
-                logger.info(f"Automatically inferred and updated research direction for session {session_id}: {res}")
+                logger.info(f"Automatically inferred and updated research direction for session {session_id}: {large}")
         except Exception as e:
             logger.warning(f"Failed to infer research direction: {e}")
 
@@ -461,13 +461,12 @@ class AgentCore:
                 intent = intent_res.get("intent", "chat")
                 if intent == "set_direction":
                     extracted = await self._extract_directions_from_message(message)
-                    if extracted.get("large") or extracted.get("medium") or extracted.get("small"):
-                        current_state = self.state_skill.get_state(session_id)
+                    if extracted.get("large"):
                         self.state_skill.update_state(
                             session_id,
-                            large_direction=extracted["large"] or current_state.large_direction,
-                            medium_direction=extracted["medium"] or current_state.medium_direction,
-                            small_direction=extracted["small"] or current_state.small_direction
+                            large_direction=extracted["large"],
+                            medium_direction=None,
+                            small_direction=None
                         )
                         # 重新取得更新後的 context
                         role_state = self.state_skill.get_state(session_id)
