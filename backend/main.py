@@ -177,6 +177,25 @@ def update_role_state(req: RoleStateRequest):
 @app.get("/api/role-state/{session_id}")
 def get_role_state(session_id: str):
     state = agent.state_skill.get_state(session_id)
+    # 如果狀態全空，但是有已存在的摘要，則在背景自動推導填滿方向！
+    if state.is_empty():
+        summaries = agent.get_summaries(session_id)
+        if summaries:
+            import asyncio
+            first_sum = summaries[0]
+            # 由於 summaries 是以 dict 結構儲存於快取
+            title = first_sum.get("title", "")
+            keywords = first_sum.get("keywords", [])
+            goal = first_sum.get("research_goal", "")
+            findings = first_sum.get("main_findings", "")
+            
+            asyncio.create_task(agent._infer_and_update_direction(
+                session_id,
+                title,
+                keywords,
+                f"{goal} {findings}"
+            ))
+            
     desc = agent.state_skill.describe_state(session_id)
     return {"state": state.model_dump(), "description": desc}
 

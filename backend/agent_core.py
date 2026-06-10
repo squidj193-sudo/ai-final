@@ -128,6 +128,10 @@ class AgentCore:
                 self._conversations = data.get("conversations", [])
                 self._chat_history = data.get("chat_history", {})
                 
+                # 同步恢復 RoleState
+                for k, v in data.get("role_states", {}).items():
+                    self.state_skill._states[k] = RoleState(**v)
+                
                 # 同步重建 _chat_sessions 作為 LLM 對話快取
                 for sid, history in self._chat_history.items():
                     gemini_history = []
@@ -151,7 +155,8 @@ class AgentCore:
                 "matrix_cache": self._matrix_cache,
                 "direction_cache": self._direction_cache,
                 "conversations": self._conversations,
-                "chat_history": self._chat_history
+                "chat_history": self._chat_history,
+                "role_states": {k: v.model_dump() for k, v in self.state_skill._states.items()}
             }
             path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
         except Exception as e:
@@ -162,6 +167,8 @@ class AgentCore:
         import re
         import json
         raw_clean = raw.strip()
+        
+        # 尋找第一個 { 到最後一個 }
         match = re.search(r'\{.*\}', raw_clean, re.DOTALL)
         if match:
             json_str = match.group(0)
@@ -172,13 +179,17 @@ class AgentCore:
         try:
             return json.loads(json_str)
         except Exception as e:
-            # 備用：嘗試手動去掉 Markdown ``` 標籤
-            if "```" in json_str:
-                lines = [l for l in json_str.split("\n") if not l.strip().startswith("```")]
-                try:
-                    return json.loads("".join(lines).strip())
-                except:
-                    pass
+            # 嘗試清理常見字元與 Markdown 標記
+            cleaned = re.sub(r'```(?:json)?', '', json_str).strip()
+            # 移除開頭或結尾可能的雜質文字
+            start = cleaned.find('{')
+            end = cleaned.rfind('}')
+            if start != -1 and end != -1:
+                cleaned = cleaned[start:end+1]
+            try:
+                return json.loads(cleaned)
+            except:
+                pass
             raise e
 
     async def detect_intent(self, message: str) -> dict:
@@ -282,6 +293,66 @@ class AgentCore:
         except Exception as e:
             logger.warning(f"Failed to extract directions: {e}")
             return {"large": None, "medium": None, "small": None}
+
+    async def _infer_and_update_direction(self, session_id: str, title: str, keywords: list[str], abstract: str = "") -> None:
+        """根據論文標題、關鍵字與摘要自動推導並更新大、中、小研究方向"""
+        # 如果目前的大、中、小方向都已經有了，就不重複推導（或者只在不完整時推導）
+        current_state = self.state_skill.get_state(session_id)
+        if current_state.large_direction and current_state.medium_direction and current_state.small_direction:
+            return # 已經設定完整，不覆寫
+            
+        prompt = f"""你是一個學術研究分類專家。請針對以下提供的論文標題、關鍵字與摘要，為其歸納推導出最適當的「大方向（學門領域）」、「中方向（子領域技術）」、「小方向（具體主題材料）」。
+
+【分類定義與範例說明】：
+1. 大方向 (Large Direction)：最上層的主流領域範疇（通常是跨學門或核心學科）。
+   - 例如：永續發展與能源、人工智慧與資訊、生醫健康、半導體與先進製造、光電物理、人文社會科學。
+2. 中方向 (Medium Direction)：中層次的研究技術、方法或子領域。
+   - 例如：太陽能技術、深度學習、基因工程、微電子元件、發光二極體、高齡化社會。
+3. 小方向 (Small Direction)：最底層的具體研究主題、材料、演算法或特定應用。
+   - 例如：鈣鈦礦太陽能電池、物體偵測、CRISPR 基因編輯、矽基電晶體、有機發光二極體 (OLED)、失智症照顧。
+
+【待分析論文資訊】：
+論文標題：{title}
+關鍵字：{", ".join(keywords) if keywords else "未提供"}
+摘要：{abstract[:1000]}
+
+請務必嚴格以下列 JSON 格式回傳，請勿包含 any markdown 標記（如 ```json）或額外敘述，僅回傳 JSON 物件：
+{{
+  "large_direction": "推導的大方向（限 2-10 字，例如：永續發展與能源）",
+  "medium_direction": "推導的中方向（限 2-10 字，例如：太陽能技術）",
+  "small_direction": "推導的小方向（限 2-12 字，例如：鈣鈦礦太陽能電池）"
+}}"""
+        try:
+            response = await asyncio.to_thread(self._intent_model.generate_content, prompt)
+            raw = response.text.strip()
+            res = self._parse_json_robustly(raw)
+            
+            large = res.get("large_direction")
+            medium = res.get("medium_direction")
+            small = res.get("small_direction")
+            
+            # 清理可能夾帶的 "例：" 等無效字樣
+            def clean_dir(val):
+                if not val:
+                    return None
+                val = val.strip().replace("例：", "").replace("例如：", "").strip(" \"'、")
+                return val if val and val.lower() != "null" else None
+
+            large = clean_dir(large)
+            medium = clean_dir(medium)
+            small = clean_dir(small)
+            
+            if large or medium or small:
+                self.state_skill.update_state(
+                    session_id,
+                    large_direction=large or current_state.large_direction,
+                    medium_direction=medium or current_state.medium_direction,
+                    small_direction=small or current_state.small_direction
+                )
+                self._save_session_data()
+                logger.info(f"Automatically inferred and updated research direction for session {session_id}: {res}")
+        except Exception as e:
+            logger.warning(f"Failed to infer research direction: {e}")
 
     async def chat(self, session_id: str, message: str) -> dict:
         """包裝主要對話，將使用者訊息與助理回覆儲存至後端歷史紀錄"""
@@ -520,6 +591,16 @@ class AgentCore:
                                 if not isinstance(s, Exception) and not any(x.title.lower() == s.title.lower() for x in self._summaries[session_id]):
                                     self._summaries[session_id].append(s)
                             self._save_session_data()
+                            
+                            # 自動從搜尋出來的第一篇論文摘要推導並設定研究方向
+                            valid_summaries = [s for s in summaries if not isinstance(s, Exception)]
+                            if valid_summaries:
+                                await self._infer_and_update_direction(
+                                    session_id,
+                                    valid_summaries[0].title,
+                                    valid_summaries[0].keywords,
+                                    valid_summaries[0].research_goal + " " + valid_summaries[0].main_findings
+                                )
                         except Exception as e:
                             logger.warning(f"Auto-summarizing failed: {e}")
                     result_text = f"已找到 {len(papers)} 篇相關論文：\n\n"
@@ -753,6 +834,14 @@ class AgentCore:
 
             # 更新 RAG 的 Metadata 為最精準的 AI 檢索值
             self.rag_store.add_document(paper_id, content, {"title": summary.title, "year": summary.year})
+
+            # 自動從上傳的論文摘要推導並設定研究方向
+            await self._infer_and_update_direction(
+                session_id,
+                summary.title,
+                summary.keywords,
+                summary.research_goal + " " + summary.main_findings
+            )
 
             # 4. 儲存摘要
             if session_id not in self._summaries:
