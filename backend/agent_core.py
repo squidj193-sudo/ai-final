@@ -309,22 +309,46 @@ class AgentCore:
             return {"large": None, "medium": None, "small": None}
 
     async def _infer_and_update_direction(self, session_id: str, title: str, keywords: list[str], abstract: str = "") -> None:
-        """根據論文標題、關鍵字與摘要自動推導並更新大、中、小研究方向"""
+        """根據論文標題、關鍵字與摘要，或使用者對話內容自動推導並更新大、中、小研究方向"""
         # 如果已經進展到論文摘要階段，且大、中、小方向都已經設定完整，就不再覆寫
         has_summaries = bool(self.get_summaries(session_id))
         current_state = self.state_skill.get_state(session_id)
         if has_summaries and current_state.large_direction and current_state.medium_direction and current_state.small_direction:
             return # 已經設定完整且有論文摘要，不覆寫
             
-        prompt = f"""你是一個學術研究分類專家。請針對以下提供的論文標題、關鍵字與摘要，為其歸納推導出最適當的「大方向（學門領域）」、「中方向（子領域技術）」、「小方向（具體主題材料）」。
+        # 動態調整 Prompt，區分「特定論文」與「一般對話」
+        if not title and not keywords:
+            # 一般對話推導
+            prompt = f"""你是一個學術研究分類專家。請針對以下使用者的對話內容或研究想法，歸納推導出最適當的「大方向（學門領域）」、「中方向（子領域技術）」、「小方向（具體主題材料/特定技術）」。
+
+【分類定義與範例說明】：
+1. 大方向 (Large Direction)：最上層的主流領域範疇。
+   - 例如：永續發展與能源、人工智慧與資訊、生醫健康、半導體與先進製造、光電物理。
+2. 中方向 (Medium Direction)：中層次的研究技術、方法或子領域。
+   - 例如：太陽能技術、深度學習、大型語言模型、微電子元件、基因工程。
+3. 小方向 (Small Direction)：最底層的具體研究主題、材料、演算法或特定技術應用。
+   - 例如：鈣鈦礦太陽能電池、物體偵測、Chain-of-Thought (CoT) 推理、矽基電晶體、CRISPR 基因編輯。
+
+【使用者對話內容】：
+"{abstract}"
+
+請務必精準回傳一個 JSON 物件，請勿包含 any markdown 標記（如 ```json）或額外文字，僅回傳 JSON 物件：
+{{
+  "large_direction": "推導的大方向（限 2-10 字，例如：人工智慧與資訊）",
+  "medium_direction": "推導的中方向（限 2-10 字，roleForm.medium，例如：大型語言模型）",
+  "small_direction": "推導的小方向（限 2-12 字，roleForm.small，例如：Chain-of-Thought 推理）"
+}}"""
+        else:
+            # 論文推導
+            prompt = f"""你是一個學術研究分類專家。請針對以下提供的論文標題、關鍵字與摘要，為其歸納推導出最適當的「大方向（學門領域）」、「中方向（子領域技術）」、「小方向（具體主題材料）」。
 
 【分類定義與範例說明】：
 1. 大方向 (Large Direction)：最上層的主流領域範疇（通常是跨學門或核心學科）。
-   - 例如：永續發展與能源、人工智慧與資訊、生醫健康、半導體與先進製造、光電物理、人文社會科學。
+   - 例如：永續發展與能源、人工智慧與資訊、生醫健康、半導體與先進製造、光電物理。
 2. 中方向 (Medium Direction)：中層次的研究技術、方法或子領域。
-   - 例如：太陽能技術、深度學習、基因工程、微電子元件、發光二極體、高齡化社會。
+   - 例如：太陽能技術、深度學習、基因工程、微電子元件。
 3. 小方向 (Small Direction)：最底層的具體研究主題、材料、演算法或特定應用。
-   - 例如：鈣鈦礦太陽能電池、物體偵測、CRISPR 基因編輯、矽基電晶體、有機發光二極體 (OLED)、失智症照顧。
+   - 例如：鈣鈦礦太陽能電池、物體偵測、CRISPR 基因編輯、矽基電晶體。
 
 【待分析論文資訊】：
 論文標題：{title}
