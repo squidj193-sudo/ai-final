@@ -4,6 +4,33 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from pyvis.network import Network
 import community as community_louvain
+import jieba
+import re
+import logging
+
+# Disable jieba default console output logging to keep terminal output clean
+jieba.setLogLevel(logging.WARNING)
+
+def ch_en_tokenizer(text):
+    if not text:
+        return []
+    words = jieba.lcut(text.lower())
+    tokens = []
+    for w in words:
+        w = w.strip()
+        if not w:
+            continue
+        # Check if it contains Chinese characters
+        has_chinese = any('\u4e00' <= char <= '\u9fff' for char in w)
+        if has_chinese:
+            # Filter out single characters to keep only words with length >= 2
+            if len(w) >= 2:
+                tokens.append(w)
+        else:
+            # Keep English/number words with length >= 2
+            if len(w) >= 2 and re.match(r'^[a-zA-Z0-9\-_]+$', w):
+                tokens.append(w)
+    return tokens
 
 class SessionGraphSkill:
     def generate_graph_html(self, summaries: list) -> str:
@@ -43,11 +70,6 @@ class SessionGraphSkill:
         if len(summaries) > 1:
             corpus = [G.nodes[i]["combined_text"] for i in range(len(summaries))]
             try:
-                import re
-                def ch_en_tokenizer(text):
-                    # Extract English words/numbers and individual Chinese characters
-                    return re.findall(r'[a-zA-Z0-9\-_]+|[\u4e00-\u9fff]', text.lower())
-
                 vectorizer = TfidfVectorizer(tokenizer=ch_en_tokenizer, token_pattern=None)
                 tfidf = vectorizer.fit_transform(corpus)
                 sim_matrix = cosine_similarity(tfidf)
@@ -201,12 +223,6 @@ class SessionGraphSkill:
         """
         計算圖的 PageRank (核心論文重要度)、Betweenness Centrality (跨流派樞紐)、與 Louvain 社群 (技術流派)
         """
-        import networkx as nx
-        import numpy as np
-        from sklearn.feature_extraction.text import TfidfVectorizer
-        from sklearn.metrics.pairwise import cosine_similarity
-        import community as community_louvain
-        import re
 
         if not summaries:
             return {"influence": [], "communities": {}, "bridges": []}
@@ -227,8 +243,6 @@ class SessionGraphSkill:
         if len(summaries) > 1:
             corpus = [G.nodes[i]["combined_text"] for i in range(len(summaries))]
             try:
-                def ch_en_tokenizer(text):
-                    return re.findall(r'[a-zA-Z0-9\-_]+|[\u4e00-\u9fff]', text.lower())
                 vectorizer = TfidfVectorizer(tokenizer=ch_en_tokenizer, token_pattern=None)
                 tfidf = vectorizer.fit_transform(corpus)
                 sim_matrix = cosine_similarity(tfidf)
@@ -330,10 +344,6 @@ class SessionGraphSkill:
         if len(summaries) > 1:
             corpus = [G.nodes[i]["combined_text"] for i in range(len(summaries))]
             try:
-                import re
-                def ch_en_tokenizer(text):
-                    return re.findall(r'[a-zA-Z0-9\-_]+|[\u4e00-\u9fff]', text.lower())
-
                 vectorizer = TfidfVectorizer(tokenizer=ch_en_tokenizer, token_pattern=None)
                 tfidf = vectorizer.fit_transform(corpus)
                 sim_matrix = cosine_similarity(tfidf)
