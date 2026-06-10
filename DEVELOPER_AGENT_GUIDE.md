@@ -20,7 +20,7 @@ ai-final/
 │   │   ├── matrix_skill.py    # 文獻比較矩陣 (Markdown Table)
 │   │   └── direction_skill.py # 建議研究課題與可行性評估
 │   └── tools/
-│       └── rag.py             # 向量檢索 (MarkItDown PDF 解析 + ChromaDB)
+│       └── rag.py             # 本地檢索 (MarkItDown PDF 解析 + 本地 Markdown 儲存與詞頻檢索)
 └── frontend/                  # React + Vite 前端
     ├── src/
     │   ├── pages/             # 頁面組件 (對話搜尋、摘要、比較矩陣、研究方向)
@@ -42,11 +42,11 @@ ai-final/
 *   **模組位置**：[search_skill.py](file:///c:/Users/User/Downloads/1/ai-final/backend/skills/search_skill.py)
 *   **邏輯**：串接 Semantic Scholar API，且自動拼接使用者的 `RoleState` (研究方向階層) 上下文以縮小搜尋範圍。內含一個 httpx 指數退避 (Exponential Backoff) 的 429 重試迴圈。
 
-### 3. 本地 PDF 解析與 RAG 向量知識庫
+### 3. 本地 PDF 解析與 RAG 輕量檢索知識庫
 *   **模組位置**：[rag.py](file:///c:/Users/User/Downloads/1/ai-final/backend/tools/rag.py)
 *   **流程**：
     1. 上傳的 PDF 透過 `parse_pdf_to_markdown` 調用微軟 `markitdown` 轉為 Markdown 格式純文字。
-    2. 使用 `models/embedding-001` 作為嵌入模型，將文本以 Sliding Window（1000字，重疊200字）切塊後存入 ChromaDB 本地持久化資料庫 (`./data/chroma`)。
+    2. 將解析結果以 Sliding Window（1500 字，重疊 300 字）切塊並與元數據儲存在本地 `./data/papers/` 中，查詢時使用本地詞頻匹配檢索。
 
 ### 4. 結構化摘要與比較
 *   **結構化摘要**：[analysis_skill.py](file:///c:/Users/User/Downloads/1/ai-final/backend/skills/analysis_skill.py) 要求 Gemini 模型以嚴格的 JSON 格式回傳 `PaperSummary`（包含研究目的、研究方法、主要發現、研究限制）。

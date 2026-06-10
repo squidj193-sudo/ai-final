@@ -68,8 +68,8 @@ export default function ChatPage({ sessionId, onStateUpdate }) {
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [showUpload, setShowUpload] = useState(false)
-  const [uploadForm, setUploadForm] = useState({ title: '', authors: '', year: '' })
-  const [uploadFile, setUploadFile] = useState(null)
+  const [uploadQueue, setUploadQueue] = useState([])
+  const [uploading, setUploading] = useState(false)
   const bottomRef = useRef(null)
   const fileInputRef = useRef(null)
 
@@ -123,27 +123,55 @@ export default function ChatPage({ sessionId, onStateUpdate }) {
     }
   }
 
+  const handleFileChange = (e) => {
+    if (!e.target.files) return
+    const files = Array.from(e.target.files)
+    const newItems = files.map(file => ({
+      id: Math.random().toString(36).substring(2, 9),
+      file,
+      status: 'pending', // 'pending' | 'processing' | 'success' | 'failed'
+      error: null
+    }))
+    setUploadQueue(prev => [...prev, ...newItems])
+  }
+
+  const handleRemoveFile = (id) => {
+    setUploadQueue(prev => prev.filter(item => item.id !== id))
+  }
+
+  const handleCloseModal = () => {
+    if (uploading) return
+    setShowUpload(false)
+    setUploadQueue([])
+  }
 
   const handleUpload = async () => {
-    if (!uploadFile) return
+    if (uploadQueue.length === 0 || uploading) return
+    setUploading(true)
     setLoading(true)
-    setShowUpload(false)
-    const displayName = uploadForm.title.trim() || uploadFile.name
-    addMessage('user', `📎 上傳論文：${displayName}`)
-    try {
-      const res = await uploadPaper(
-        sessionId, uploadFile,
-        uploadForm.title, uploadForm.authors, uploadForm.year
-      )
-      addMessage('assistant', `✅ ${res.message}\n\n**摘要摘錄：**\n\n**研究目的：** ${res.summary.research_goal}\n\n**主要發現：** ${res.summary.main_findings}`, 'analyze', { suggestions: ["生成比較矩陣", "分析研究方向"] })
-      onStateUpdate?.()
-    } catch (e) {
-      addMessage('assistant', `⚠️ 上傳失敗：${e.message}`, 'error', { suggestions: ["如何安裝 PDF 依賴？", "如何更換 API Key？"] })
-    } finally {
-      setLoading(false)
-      setUploadForm({ title: '', authors: '', year: '' })
-      setUploadFile(null)
+    
+    // Process queue sequentially
+    for (let i = 0; i < uploadQueue.length; i++) {
+      const item = uploadQueue[i]
+      if (item.status !== 'pending') continue
+
+      setUploadQueue(prev => prev.map(q => q.id === item.id ? { ...q, status: 'processing' } : q))
+      addMessage('user', `📎 上傳論文：${item.file.name}`)
+
+      try {
+        const res = await uploadPaper(sessionId, item.file, "", "", "")
+        setUploadQueue(prev => prev.map(q => q.id === item.id ? { ...q, status: 'success' } : q))
+        addMessage('assistant', `✅ 論文「${res.summary.title}」已解析完成，存入知識庫中。\n\n**摘要摘錄：**\n\n**研究目的：** ${res.summary.research_goal}\n\n**主要發現：** ${res.summary.main_findings}`, 'analyze', { suggestions: ["生成比較矩陣", "分析研究方向"] })
+      } catch (e) {
+        console.error(e)
+        setUploadQueue(prev => prev.map(q => q.id === item.id ? { ...q, status: 'failed', error: e.message } : q))
+        addMessage('assistant', `⚠️ 論文「${item.file.name}」解析失敗：${e.message}`, 'error', { suggestions: ["如何安裝 PDF 依賴？", "重試對話"] })
+      }
     }
+
+    onStateUpdate?.()
+    setUploading(false)
+    setLoading(false)
   }
 
   const getMessageIcon = (type) => {
@@ -206,30 +234,50 @@ export default function ChatPage({ sessionId, onStateUpdate }) {
       {showUpload && (
         <div className="upload-modal glass-card fade-in">
           <div className="upload-modal-header">
-            <h3>📎 上傳論文</h3>
-            <button className="btn-icon btn" onClick={() => setShowUpload(false)}>✕</button>
+            <h3>📎 上傳多篇論文</h3>
+            <button className="btn-icon btn" onClick={handleCloseModal} disabled={uploading}>✕</button>
           </div>
           <div className="upload-form">
-            <label>論文標題 (選填)
-              <input value={uploadForm.title} onChange={e => setUploadForm(p => ({ ...p, title: e.target.value }))} placeholder="未填寫將由 AI 自動從內容提取" />
-            </label>
-            <label>作者（以逗號分隔，選填）
-              <input value={uploadForm.authors} onChange={e => setUploadForm(p => ({ ...p, authors: e.target.value }))} placeholder="例：Wang, Li, Chen" />
-            </label>
-            <label>年份 (選填)
-              <input type="number" value={uploadForm.year} onChange={e => setUploadForm(p => ({ ...p, year: e.target.value }))} placeholder="例：2024" />
-            </label>
-            <label className="file-input-label">
-              {uploadFile ? `📄 ${uploadFile.name}` : '選擇 PDF 檔案'}
-              <input ref={fileInputRef} type="file" accept=".pdf" style={{ display: 'none' }}
-                onChange={e => setUploadFile(e.target.files[0])} />
-              <button className="btn btn-ghost" onClick={() => fileInputRef.current?.click()}>瀏覽</button>
-            </label>
+            <div className={`file-upload-zone ${uploading ? 'disabled' : ''}`} onClick={() => !uploading && fileInputRef.current?.click()}>
+              <div style={{ fontSize: 28, marginBottom: 8 }}>📥</div>
+              <p>{uploading ? '正在依序解析論文中...' : '點擊選擇多個 PDF 論文檔案'}</p>
+              <input 
+                ref={fileInputRef} 
+                type="file" 
+                accept=".pdf" 
+                multiple 
+                style={{ display: 'none' }}
+                onChange={handleFileChange}
+                disabled={uploading}
+              />
+            </div>
+            {uploadQueue.length > 0 && (
+              <div className="file-queue-list">
+                {uploadQueue.map(item => (
+                  <div key={item.id} className="queue-item">
+                    <span className="queue-file-name" title={item.file.name}>
+                      📄 {item.file.name}
+                    </span>
+                    <div className="queue-item-actions">
+                      <span className={`status-badge status-${item.status}`}>
+                        {item.status === 'pending' && '等待中'}
+                        {item.status === 'processing' && '解析中...'}
+                        {item.status === 'success' && '完成 ✅'}
+                        {item.status === 'failed' && '失敗 ❌'}
+                      </span>
+                      {item.status === 'pending' && !uploading && (
+                        <button className="btn-remove-item" onClick={() => handleRemoveFile(item.id)}>✕</button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
           <div className="upload-actions">
-            <button className="btn btn-ghost" onClick={() => setShowUpload(false)}>取消</button>
-            <button className="btn btn-primary" onClick={handleUpload} disabled={!uploadFile}>
-              開始解析
+            <button className="btn btn-ghost" onClick={handleCloseModal} disabled={uploading}>取消</button>
+            <button className="btn btn-primary" onClick={handleUpload} disabled={uploading || uploadQueue.length === 0 || !uploadQueue.some(q => q.status === 'pending')}>
+              {uploading ? '解析中...' : '開始解析'}
             </button>
           </div>
         </div>

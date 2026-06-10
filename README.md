@@ -16,7 +16,7 @@ ai-final/
 │   │   ├── matrix_skill.py     # 文獻矩陣
 │   │   └── direction_skill.py  # 研究方向分析
 │   ├── tools/
-│   │   └── rag.py          # RAG（MarkItDown + ChromaDB）
+│   │   └── rag.py          # RAG（MarkItDown + 本地 Markdown 檢索）
 │   ├── requirements.txt
 │   └── .env.example
 ├── frontend/               # Vite + React 前端
