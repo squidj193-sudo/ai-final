@@ -7,42 +7,21 @@ from pydantic import BaseModel
 
 
 class RoleState(BaseModel):
-    large_direction: Optional[str] = None   # 大方向，例如：光電
-    medium_direction: Optional[str] = None  # 中方向，例如：太陽能電池
-    small_direction: Optional[str] = None   # 小方向，例如：鈣鈦礦
+    research_direction: Optional[str] = None   # 研究方向，例如：鈣鈦礦太陽能電池
 
     def is_empty(self) -> bool:
-        return not any([self.large_direction, self.medium_direction, self.small_direction])
+        return not self.research_direction
 
     def get_search_context(self) -> str:
-        """回傳搜尋時使用的上下文字串（優先返回最細緻的方向）"""
-        if self.small_direction:
-            return self.small_direction
-        elif self.medium_direction:
-            return self.medium_direction
-        elif self.large_direction:
-            return self.large_direction
-        return ""
+        """回傳搜尋時使用的上下文字串"""
+        return self.research_direction or ""
 
     def get_full_hierarchy_desc(self) -> str:
-        """回傳完整的研究方向層級描述"""
-        parts = []
-        if self.large_direction:
-            parts.append(self.large_direction)
-        if self.medium_direction:
-            parts.append(self.medium_direction)
-        if self.small_direction:
-            parts.append(self.small_direction)
-        return " > ".join(parts) if parts else "未設定"
+        """回傳完整的研究方向描述"""
+        return self.research_direction or "未設定"
 
     def get_level(self) -> str:
-        if self.small_direction:
-            return "小方向"
-        elif self.medium_direction:
-            return "中方向"
-        elif self.large_direction:
-            return "大方向"
-        return "未設定"
+        return "研究方向" if self.research_direction else "未設定"
 
 
 class StateSkill:
@@ -70,5 +49,4 @@ class StateSkill:
         if state.is_empty():
             return "尚未設定研究方向。"
         ctx = state.get_search_context()
-        level = state.get_level()
-        return f"目前研究方向（{level}）：{ctx}"
+        return f"目前研究方向：{ctx}"

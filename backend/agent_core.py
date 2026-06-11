@@ -31,7 +31,10 @@ SYSTEM_PROMPT = """你是一位專注於【{role_context}】領域的學術研�
    - 建立多篇論文的比較矩陣
    - 根據文獻分析提出具體、可行且具學術價值的研究課題
 
-請永遠使用繁體中文回覆。"""
+【極重要限制】：
+- 請直接給出回答，**絕對不要**在回覆開頭或任何地方輸出你自己的角色定位（例如 "Role: ..."）、狀態（例如 "Status of Field..."）、思考過程、或者是任何非使用者要求的系統分析欄位。
+- 回答應直奔主題、簡明扼要、語氣學術且專注。請直接輸出回覆內容本身，長度控制在 3-5 句話內。
+- 請永遠使用繁體中文回覆。"""
 
 INTENT_PROMPT = """分析以下使用者訊息，判斷其意圖類型。
 意圖類型選項說明：
@@ -70,14 +73,12 @@ def analyze_research_direction() -> str:
     """
     return "已觸發分析研究方向"
 
-def set_research_direction(large_direction: str, medium_direction: str = "", small_direction: str = "") -> str:
+def set_research_direction(research_direction: str) -> str:
     """
-    設定或更改使用者的學術研究大方向、中方向或小方向範疇。
+    設定或更改使用者的學術研究方向範疇。
 
     Args:
-        large_direction: 最上層領域範疇，例如：生醫、半導體、光電、人工智慧、永續發展。
-        medium_direction: 中層次研究技術或子領域，例如：基因工程、第三代半導體、太陽能電池、深度學習。
-        small_direction: 具體研究主題或材料，例如：CRISPR 基因編輯、碳化矽元件、鈣鈦礦材料、物件偵測。
+        research_direction: 具體研究主題或領域範疇，例如：鈣鈦礦太陽能電池、大型語言模型微調、生醫基因編輯。
     """
     return "已觸發設定研究方向"
 
@@ -98,9 +99,9 @@ class AgentCore:
             self.MODEL_NAME,
             generation_config=genai.GenerationConfig(
                 temperature=0.1,
-                max_output_tokens=1024
+                max_output_tokens=32,
+                response_mime_type="application/json"
             ),
-            system_instruction="You are a strict JSON assistant. You must ONLY output a single valid JSON object or JSON list as requested, starting with '{' or '[' and ending with '}' or ']'. Never output any markdown code blocks (like ```json), explanations, preambles, or postscripts."
         )
 
         self.state_skill = StateSkill()
@@ -172,27 +173,7 @@ class AgentCore:
         import json
         raw_clean = raw.strip()
         
-        # 1. 嘗試遍歷所有可能的 { 開頭與 } 結尾子字串，尋找第一個可以被載入的 JSON 物件
-        for i in range(len(raw_clean)):
-            if raw_clean[i] == '{':
-                for j in range(len(raw_clean), i, -1):
-                    if raw_clean[j-1] == '}':
-                        try:
-                            return json.loads(raw_clean[i:j])
-                        except:
-                            pass
-
-        # 2. 嘗試遍歷所有可能的 [ 開頭與 ] 結尾子字串，尋找第一個可以被載入的 JSON 陣列
-        for i in range(len(raw_clean)):
-            if raw_clean[i] == '[':
-                for j in range(len(raw_clean), i, -1):
-                    if raw_clean[j-1] == ']':
-                        try:
-                            return json.loads(raw_clean[i:j])
-                        except:
-                            pass
-
-        # 3. 備用方案：傳統的 Regex 匹配
+        # 尋找第一個 { 到最後一個 }
         match = re.search(r'\{.*\}', raw_clean, re.DOTALL)
         if match:
             json_str = match.group(0)
@@ -203,7 +184,9 @@ class AgentCore:
         try:
             return json.loads(json_str)
         except Exception as e:
+            # 嘗試清理常見字元與 Markdown 標記
             cleaned = re.sub(r'```(?:json)?', '', json_str).strip()
+            # 移除開頭或結尾可能的雜質文字
             start = cleaned.find('{')
             end = cleaned.rfind('}')
             if start != -1 and end != -1:
@@ -214,8 +197,22 @@ class AgentCore:
                 pass
             raise e
 
-
     async def detect_intent(self, message: str) -> dict:
+        # 1. Rule-based Fast Pass (關鍵字優先過濾，實現零延遲過濾)
+        msg_lower = message.lower()
+        if any(kw in msg_lower for kw in ["搜尋", "查詢", "找文獻", "找論文", "search"]):
+            query = message
+            for prefix in ["幫我搜尋", "幫我查詢", "搜尋關於", "查詢關於", "搜尋", "查詢", "search for", "search"]:
+                if prefix in query:
+                    query = query.split(prefix, 1)[1].strip()
+            query = query.strip("的文獻論文、.?!。？！")
+            return {"intent": "search", "query": query}
+        elif any(kw in msg_lower for kw in ["矩陣", "對比", "比較表格", "matrix"]):
+            return {"intent": "matrix", "query": ""}
+        elif any(kw in msg_lower for kw in ["方向建議", "研究方向", "研究題目", "可行題目", "課題", "direction"]):
+            return {"intent": "direction", "query": ""}
+
+        # 2. Fallback to Gemini
         prompt = INTENT_PROMPT.format(message=message)
         logger.info(f"Detecting intent for message: {message[:50]}...")
         response = await asyncio.to_thread(self._intent_model.generate_content, prompt)
@@ -281,7 +278,7 @@ class AgentCore:
 中文關鍵字：{query}
 英文關鍵字："""
         try:
-            response = await asyncio.to_thread(self._chat_model.generate_content, prompt)
+            response = await asyncio.to_thread(self._intent_model.generate_content, prompt)
             translated = response.text.strip()
             # 移除常見的包裝引號
             translated = translated.strip('"\'`')
@@ -464,189 +461,470 @@ class AgentCore:
         """主要對話內部實作邏輯"""
         import google.api_core.exceptions as g_exceptions
         logger.info(f"Chat request - Session ID: {session_id} | Message: {message[:100]}")
+        
+        # 1. 優先偵測意圖 (Zero-Turn)
+        intent_res = await self.detect_intent(message)
+        intent = intent_res.get("intent", "chat")
+        query = intent_res.get("query", "")
+        
         role_state = self.state_skill.get_state(session_id)
         role_context = role_state.get_search_context()
         full_context = role_state.get_full_hierarchy_desc()
-
-        # 1. 優先檢測使用者輸入是否包含 URL 或 DOI
-        import re
-        cleaned_message = re.sub(r'(https?)\s*:\s*/\s*/', r'\1://', message)
-        url_match = re.search(r'(https?://[^\s]+)', cleaned_message)
-        doi_match = re.search(r'(10\.\d{4,9}/[-._;()/:a-zA-Z0-9]+)', cleaned_message)
         
-        is_url_or_doi = False
-        target_query = ""
-        if doi_match:
-            is_url_or_doi = True
-            target_query = doi_match.group(1)
-        elif url_match:
-            is_url_or_doi = True
-            target_query = url_match.group(1)
-            
-        if is_url_or_doi:
-            logger.info(f"Direct URL/DOI detected: {target_query}")
-            paper = await self.search_skill.fetch_paper_by_id_or_url(target_query)
-            if paper:
-                import uuid
-                paper_id = paper.paper_id or str(uuid.uuid4())[:8]
-                content_paper = paper.abstract or "無摘要"
-                
-                # 使用 analysis_skill.summarize 生成摘要
-                summary = await self.analysis_skill.summarize(
-                    paper_id=paper_id,
-                    title=paper.title,
-                    authors=paper.authors,
-                    year=paper.year,
-                    content=content_paper,
-                )
-                
-                if session_id not in self._summaries:
-                    self._summaries[session_id] = []
-                # 避免重複加入
-                if not any(x.title.lower() == summary.title.lower() for x in self._summaries[session_id]):
-                    self._summaries[session_id].append(summary)
-                self._save_session_data()
-                
-                # 同時將資訊寫入 RAG
-                try:
-                    self.rag_store.add_document(paper_id, content_paper, {"title": summary.title, "year": summary.year})
-                except Exception as ree:
-                    logger.warning(f"Failed to add to RAG: {ree}")
-                
-                result_text = f"✅ 已成功抓取並分析您提供的論文：**{summary.title}**\n\n"
-                result_text += f"**研究目的：** {summary.research_goal}\n\n"
-                result_text += f"**主要發現：** {summary.main_findings}\n\n"
-                result_text += f"**研究限制：** {summary.limitations}\n\n"
-                result_text += "*(此論文結構化摘要已自動儲存至「論文摘要」分頁中)*"
-                
-                suggestions = await self._generate_suggestions("analyze", result_text, role_context, message)
-                return {"type": "analyze", "content": result_text, "suggestions": suggestions}
-            else:
-                # 備用方案：如果無法從 Semantic Scholar 取得學術資料，嘗試直接爬取網頁內容進行摘要
-                if target_query.startswith("http://") or target_query.startswith("https://"):
-                    try:
-                        logger.info(f"Semantic Scholar lookup failed. Crawling URL directly: {target_query}")
-                        import httpx
-                        async with httpx.AsyncClient(timeout=15, follow_redirects=True) as client:
-                            resp = await client.get(target_query, headers={
-                                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-                            })
-                            if resp.status_code == 200:
-                                html_content = resp.text
-                                import re
-                                text_content = re.sub(r'<script.*?</script>', '', html_content, flags=re.DOTALL)
-                                text_content = re.sub(r'<style.*?</style>', '', text_content, flags=re.DOTALL)
-                                text_content = re.sub(r'<.*?>', '', text_content, flags=re.DOTALL)
-                                text_content = re.sub(r'\s+', ' ', text_content).strip()
-                                
-                                title_match = re.search(r'<title>(.*?)</title>', html_content, re.IGNORECASE)
-                                page_title = title_match.group(1).strip() if title_match else "網路文章"
-                                
-                                import uuid
-                                paper_id = str(uuid.uuid4())[:8]
-                                summary = await self.analysis_skill.summarize(
-                                    paper_id=paper_id,
-                                    title=page_title,
-                                    authors=["網路作者"],
-                                    year=None,
-                                    content=text_content[:8000],
-                                )
-                                
-                                if session_id not in self._summaries:
-                                    self._summaries[session_id] = []
-                                if not any(x.title.lower() == summary.title.lower() for x in self._summaries[session_id]):
-                                    self._summaries[session_id].append(summary)
-                                self._save_session_data()
-                                
-                                result_text = f"✅ 已成功擷取並分析網頁文章：**{summary.title}**\n\n"
-                                result_text += f"**研究目的：** {summary.research_goal}\n\n"
-                                result_text += f"**主要發現：** {summary.main_findings}\n\n"
-                                result_text += f"**研究限制：** {summary.limitations}\n\n"
-                                result_text += "*(此文章結構化摘要已自動儲存至「論文摘要」分頁中)*"
-                                
-                                suggestions = await self._generate_suggestions("analyze", result_text, role_context, message)
-                                return {"type": "analyze", "content": result_text, "suggestions": suggestions}
-                    except Exception as ce:
-                        logger.warning(f"Failed to crawl URL fallback '{target_query}': {ce}")
-                
-                logger.warning(f"Could not fetch paper details by URL/DOI directly. Returning error message.")
-                if target_query.startswith("http://") or target_query.startswith("https://"):
-                    error_desc = f"⚠️ 無法讀取該網頁或論文內容（可能因為該網站有防爬蟲機制，如 Medium / Cloudflare，或不屬於公開學術資料庫格式）。\n\n**建議您：**\n1. 直接使用 **「📎 上傳論文」** 功能上傳 PDF 檔案。\n2. 將論文摘要或內文複製並直接貼上到對話框中，讓我為您進行分析。"
-                    return {"type": "error", "content": error_desc, "suggestions": ["直接搜尋相關文獻", "如何上傳 PDF 論文"]}
-                else:
-                    error_desc = f"⚠️ 無法透過 DOI `{target_query}` 獲取論文資料（Semantic Scholar 資料庫中可能尚未收錄此 DOI）。\n\n**建議您：**\n1. 使用 **「📎 上傳論文」** 功能上傳 PDF 檔案。\n2. 直接輸入關鍵字讓我為您搜尋相似文獻。"
-                    return {"type": "error", "content": error_desc, "suggestions": ["直接搜尋相關文獻", "如何上傳 PDF 論文"]}
-
-        # 2. 意圖檢測與 Zero-Turn 路由
+        # 2. 自動提取與更新研究方向
         try:
-            intent_res = await self.detect_intent(message)
-            intent = intent_res.get("intent", "chat")
-            query = intent_res.get("query") or message
-            
-            # 尚未進展到論文摘要，則在對話中自動推導並更新方向
             has_summaries = bool(self.get_summaries(session_id))
             if not has_summaries:
+                # 尚未進展到論文摘要，則在所有對話中自動推導並更新方向
                 await self._infer_and_update_direction(session_id, "", [], message)
                 # 重新取得更新後的 context
                 role_state = self.state_skill.get_state(session_id)
                 role_context = role_state.get_search_context()
                 full_context = role_state.get_full_hierarchy_desc()
+            else:
+                if intent == "set_direction":
+                    extracted = await self._extract_directions_from_message(message)
+                    if extracted.get("research_direction"):
+                        self.state_skill.update_state(
+                            session_id,
+                            research_direction=extracted["research_direction"]
+                        )
+                        # 重新取得更新後的 context
+                        role_state = self.state_skill.get_state(session_id)
+                        role_context = role_state.get_search_context()
+                        full_context = role_state.get_full_hierarchy_desc()
         except Exception as e:
-            logger.warning(f"Intent detection or auto-updating direction failed: {e}")
-            intent = "chat"
-            query = message
+            logger.warning(f"Auto-updating direction failed: {e}")
+
+        # ─── Zero-Turn Direct Tool Execution (100% 準確直達，省去二次 LLM 工具協商時間) ───
+        if intent == "search":
+            logger.info(f"Zero-Turn: Direct search triggered for query '{query or message}'")
+            translated_query = await self._translate_query_to_english(query or message)
+            translated_context = await self._translate_query_to_english(role_context) if role_context else ""
+            papers = await self.search_skill.search(translated_query, context=translated_context)
+            import uuid
+            summary_tasks = [self.analysis_skill.summarize(paper_id=p.paper_id or str(uuid.uuid4())[:8], title=p.title, authors=p.authors, year=p.year, content=p.abstract or "無摘要") for p in papers]
+            if summary_tasks:
+                try:
+                    summaries = await asyncio.gather(*summary_tasks, return_exceptions=True)
+                    if session_id not in self._summaries:
+                        self._summaries[session_id] = []
+                    for s in summaries:
+                        if not isinstance(s, Exception) and not any(x.title.lower() == s.title.lower() for x in self._summaries[session_id]):
+                            self._summaries[session_id].append(s)
+                    self._save_session_data()
+                    
+                    valid_summaries = [s for s in summaries if not isinstance(s, Exception)]
+                    if valid_summaries:
+                        await self._infer_and_update_direction(
+                            session_id,
+                            valid_summaries[0].title,
+                            valid_summaries[0].keywords,
+                            valid_summaries[0].research_goal + " " + valid_summaries[0].main_findings
+                        )
+                except Exception as e:
+                    logger.warning(f"Auto-summarizing failed: {e}")
+            result_text = f"已找到 {len(papers)} 篇相關論文：\n\n"
+            for p in papers:
+                authors = "、".join(p.authors[:3]) + ("..." if len(p.authors) > 3 else "")
+                result_text += f"📄 **{p.title}**\n"
+                result_text += f"   - 作者：{authors}｜年份：{p.year or '未知'}\n"
+                if p.abstract:
+                    result_text += f"   - 摘要：{p.abstract[:150]}...\n"
+                result_text += "\n"
+            result_text += "*(以上搜尋到的論文已自動分析並存入「論文摘要」記錄頁中，您可以切換分頁查看)*"
+            
+            suggestions = await self._generate_suggestions("search", result_text, role_context, message)
+            return {"type": "search", "content": result_text, "papers": [p.model_dump() for p in papers], "suggestions": suggestions}
+
+        elif intent == "matrix":
+            logger.info("Zero-Turn: Direct comparison matrix generation triggered")
+            summaries = []
+            seen = set()
+            for sums in self._summaries.values():
+                for s in sums:
+                    if s.title.lower() not in seen:
+                        seen.add(s.title.lower())
+                        summaries.append(s)
+            if len(summaries) < 2:
+                return {"type": "chat", "content": "目前已分析的論文數量不足（至少需要 2 篇），請先上傳或搜尋論文後再生成比較矩陣。"}
+            matrix = await self.matrix_skill.build_matrix(summaries, role_context=full_context)
+            self._matrix_cache[session_id] = matrix
+            self._save_session_data()
+            
+            suggestions = await self._generate_suggestions("matrix", matrix, role_context, message)
+            return {"type": "matrix", "content": matrix, "suggestions": suggestions}
+
+        elif intent == "direction":
+            logger.info("Zero-Turn: Direct research direction suggestions triggered")
+            matrix = self._matrix_cache.get(session_id)
+            if not matrix:
+                summaries = []
+                seen = set()
+                for sums in self._summaries.values():
+                    for s in sums:
+                        if s.title.lower() not in seen:
+                            seen.add(s.title.lower())
+                            summaries.append(s)
+                if len(summaries) >= 2:
+                    matrix = await self.matrix_skill.build_matrix(summaries, role_context=full_context)
+                    self._matrix_cache[session_id] = matrix
+                    self._save_session_data()
+                else:
+                    return {"type": "chat", "content": "目前已分析的論文數量不足（至少需要 2 篇），請先上傳或搜尋論文後再生成研究方向建議。"}
+            
+            # 計算圖譜指標
+            from skills.graph_skill import SessionGraphSkill
+            summaries = self.get_summaries(session_id)
+            graph_insights_str = "尚無足夠文獻建立圖譜指標（至少需要 2 篇）。"
+            if len(summaries) >= 2:
+                try:
+                    g_skill = SessionGraphSkill()
+                    metrics = g_skill.compute_graph_metrics(summaries)
+                    
+                    infl_str = "\n".join([f"- **{x['title']}** (PageRank重要度: {x['pagerank']:.4f})" for x in metrics.get("influence", [])[:3]])
+                    
+                    comm_str = ""
+                    for cid, papers in metrics.get("communities", {}).items():
+                        comm_str += f"- 技術流派/社群 {cid}:\n"
+                        for p in papers:
+                            comm_str += f"  * {p}\n"
+                    
+                    bridges = [x for x in metrics.get("bridges", []) if x['betweenness'] > 0]
+                    bridge_str = "\n".join([f"- **{x['title']}** (Betweenness橋接度: {x['betweenness']:.4f})" for x in bridges[:3]])
+                    if not bridge_str:
+                        bridge_str = "- 尚無顯著的跨領域橋接文獻。"
+                        
+                    graph_insights_str = f"1. 核心文獻排名 (PageRank):\n{infl_str}\n\n2. 技術社群分組 (Louvain):\n{comm_str}\n\n3. 跨領域橋接文獻 (Betweenness):\n{bridge_str}"
+                except Exception as ge:
+                    logger.warning(f"Failed to compute graph metrics for directions: {ge}")
+                    graph_insights_str = "圖譜指標計算失敗，僅使用矩陣分析。"
+
+            report = await self.direction_skill.analyze(matrix, role_context=full_context, graph_insights=graph_insights_str)
+            self._direction_cache[session_id] = report
+            self._save_session_data()
+            
+            suggestions = await self._generate_suggestions("direction", report, role_context, message)
+            return {"type": "direction", "content": report, "suggestions": suggestions}
 
         try:
-            if intent == "set_direction":
-                # 提取大中小方向
-                extracted = await self._extract_directions_from_message(message)
-                large = extracted.get("large") or ""
-                medium = extracted.get("medium") or ""
-                small = extracted.get("small") or ""
-                
-                # 如果提取失敗，試著用 infer
-                if not large:
-                    await self._infer_and_update_direction(session_id, "", [], message)
+            # 優先檢測使用者輸入是否包含 URL 或 DOI
+            import re
+            # 排除 URL 中的空格（例如 https : // 轉為 https://）
+            cleaned_message = re.sub(r'(https?)\s*:\s*/\s*/', r'\1://', message)
+            
+            url_match = re.search(r'(https?://[^\s]+)', cleaned_message)
+            doi_match = re.search(r'(10\.\d{4,9}/[-._;()/:a-zA-Z0-9]+)', cleaned_message)
+            
+            is_url_or_doi = False
+            target_query = ""
+            if doi_match:
+                is_url_or_doi = True
+                target_query = doi_match.group(1)
+            elif url_match:
+                is_url_or_doi = True
+                target_query = url_match.group(1)
+            
+            # 若為 URL/DOI，直接進行特定文章抓取與摘要處理
+            if is_url_or_doi:
+                logger.info(f"Direct URL/DOI detected: {target_query}")
+                paper = await self.search_skill.fetch_paper_by_id_or_url(target_query)
+                if paper:
+                    import uuid
+                    paper_id = paper.paper_id or str(uuid.uuid4())[:8]
+                    content = paper.abstract or "無摘要"
+                    
+                    # 使用 analysis_skill.summarize 生成摘要
+                    summary = await self.analysis_skill.summarize(
+                        paper_id=paper_id,
+                        title=paper.title,
+                        authors=paper.authors,
+                        year=paper.year,
+                        content=content,
+                    )
+                    
+                    if session_id not in self._summaries:
+                        self._summaries[session_id] = []
+                    # 避免重複加入
+                    if not any(x.title.lower() == summary.title.lower() for x in self._summaries[session_id]):
+                        self._summaries[session_id].append(summary)
+                    self._save_session_data()
+                    
+                    # 同時將資訊寫入 RAG
+                    try:
+                        self.rag_store.add_document(paper_id, content, {"title": summary.title, "year": summary.year})
+                    except Exception as ree:
+                        logger.warning(f"Failed to add to RAG: {ree}")
+                    
+                    result_text = f"✅ 已成功抓取並分析您提供的論文：**{summary.title}**\n\n"
+                    result_text += f"**研究目的：** {summary.research_goal}\n\n"
+                    result_text += f"**主要發現：** {summary.main_findings}\n\n"
+                    result_text += f"**研究限制：** {summary.limitations}\n\n"
+                    result_text += "*(此論文結構化摘要已自動儲存至「論文摘要」分頁中)*"
+                    
+                    suggestions = await self._generate_suggestions("analyze", result_text, role_context, message)
+                    return {"type": "analyze", "content": result_text, "suggestions": suggestions}
                 else:
+                    # 備用方案：如果無法從 Semantic Scholar 取得學術資料，嘗試直接爬取網頁內容進行摘要
+                    if target_query.startswith("http://") or target_query.startswith("https://"):
+                        try:
+                            logger.info(f"Semantic Scholar lookup failed. Crawling URL directly: {target_query}")
+                            import httpx
+                            # 爬取網頁內容
+                            async with httpx.AsyncClient(timeout=15, follow_redirects=True) as client:
+                                resp = await client.get(target_query, headers={
+                                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+                                })
+                                if resp.status_code == 200:
+                                    html_content = resp.text
+                                    # 簡單清理 HTML 標籤
+                                    import re
+                                    text_content = re.sub(r'<script.*?</script>', '', html_content, flags=re.DOTALL)
+                                    text_content = re.sub(r'<style.*?</style>', '', text_content, flags=re.DOTALL)
+                                    text_content = re.sub(r'<.*?>', '', text_content, flags=re.DOTALL)
+                                    text_content = re.sub(r'\s+', ' ', text_content).strip()
+                                    
+                                    # 提取網頁標題
+                                    title_match = re.search(r'<title>(.*?)</title>', html_content, re.IGNORECASE)
+                                    page_title = title_match.group(1).strip() if title_match else "網路文章"
+                                    
+                                    # 生成摘要
+                                    import uuid
+                                    paper_id = str(uuid.uuid4())[:8]
+                                    summary = await self.analysis_skill.summarize(
+                                        paper_id=paper_id,
+                                        title=page_title,
+                                        authors=["網路作者"],
+                                        year=None,
+                                        content=text_content[:8000],
+                                    )
+                                    
+                                    if session_id not in self._summaries:
+                                        self._summaries[session_id] = []
+                                    if not any(x.title.lower() == summary.title.lower() for x in self._summaries[session_id]):
+                                        self._summaries[session_id].append(summary)
+                                    self._save_session_data()
+                                    
+                                    result_text = f"✅ 已成功擷取並分析網頁文章：**{summary.title}**\n\n"
+                                    result_text += f"**研究目的：** {summary.research_goal}\n\n"
+                                    result_text += f"**主要發現：** {summary.main_findings}\n\n"
+                                    result_text += f"**研究限制：** {summary.limitations}\n\n"
+                                    result_text += "*(此文章結構化摘要已自動儲存至「論文摘要」分頁中)*"
+                                    
+                                    suggestions = await self._generate_suggestions("analyze", result_text, role_context, message)
+                                    return {"type": "analyze", "content": result_text, "suggestions": suggestions}
+                        except Exception as ce:
+                            logger.warning(f"Failed to crawl URL fallback '{target_query}': {ce}")
+                    
+                    logger.warning(f"Could not fetch paper details by URL/DOI directly. Returning error message.")
+                    if target_query.startswith("http://") or target_query.startswith("https://"):
+                        error_desc = f"⚠️ 無法讀取該網頁或論文內容（可能因為該網站有防爬蟲機制，如 Medium / Cloudflare，或不屬於公開學術資料庫格式）。\n\n**建議您：**\n1. 直接使用 **「📎 上傳論文」** 功能上傳 PDF 檔案。\n2. 將論文摘要或內文複製並直接貼上到對話框中，讓我為您進行分析。"
+                        return {"type": "error", "content": error_desc, "suggestions": ["直接搜尋相關文獻", "如何上傳 PDF 論文"]}
+                    else:
+                        error_desc = f"⚠️ 無法透過 DOI `{target_query}` 獲取論文資料（Semantic Scholar 資料庫中可能尚未收錄此 DOI）。\n\n**建議您：**\n1. 使用 **「📎 上傳論文」** 功能上傳 PDF 檔案。\n2. 直接輸入關鍵字讓我為您搜尋相似文獻。"
+                        return {"type": "error", "content": error_desc, "suggestions": ["直接搜尋相關文獻", "如何上傳 PDF 論文"]}
+
+            # 用 chat_model (配備 Tools) 進行對話，讓 Gemini 判斷是否需要 Function Call
+            sys_prompt = SYSTEM_PROMPT.format(role_context=full_context)
+            chat_model = genai.GenerativeModel(
+                model_name=self.MODEL_NAME,
+                system_instruction=sys_prompt,
+                tools=[search_academic_papers, generate_comparison_matrix, analyze_research_direction, set_research_direction]
+            )
+            
+            history = self._chat_sessions.get(session_id, [])
+            temp_history = list(history)
+            temp_history.append({"role": "user", "parts": [message]})
+            
+            response = await asyncio.to_thread(
+                chat_model.generate_content,
+                temp_history,
+            )
+            
+            # 檢查是否有 Function Call
+            function_calls = []
+            if response.candidates and response.candidates[0].content.parts:
+                for part in response.candidates[0].content.parts:
+                    if part.function_call:
+                        function_calls.append(part.function_call)
+            
+            if function_calls:
+                call = function_calls[0]
+                name = call.name
+                args = call.args
+                logger.info(f"Gemini native Function Call triggered: {name} with args {args}")
+                
+                if name == "search_academic_papers":
+                    query = args.get("query") or message
+                    translated_query = await self._translate_query_to_english(query)
+                    translated_context = await self._translate_query_to_english(role_context) if role_context else ""
+                    papers = await self.search_skill.search(translated_query, context=translated_context)
+                    import uuid
+                    summary_tasks = [self.analysis_skill.summarize(paper_id=p.paper_id or str(uuid.uuid4())[:8], title=p.title, authors=p.authors, year=p.year, content=p.abstract or "無摘要") for p in papers]
+                    if summary_tasks:
+                        try:
+                            summaries = await asyncio.gather(*summary_tasks, return_exceptions=True)
+                            if session_id not in self._summaries:
+                                self._summaries[session_id] = []
+                            for s in summaries:
+                                if not isinstance(s, Exception) and not any(x.title.lower() == s.title.lower() for x in self._summaries[session_id]):
+                                    self._summaries[session_id].append(s)
+                            self._save_session_data()
+                            
+                            # 自動從搜尋出來的第一篇論文摘要推導並設定研究方向
+                            valid_summaries = [s for s in summaries if not isinstance(s, Exception)]
+                            if valid_summaries:
+                                await self._infer_and_update_direction(
+                                    session_id,
+                                    valid_summaries[0].title,
+                                    valid_summaries[0].keywords,
+                                    valid_summaries[0].research_goal + " " + valid_summaries[0].main_findings
+                                )
+                        except Exception as e:
+                            logger.warning(f"Auto-summarizing failed: {e}")
+                    result_text = f"已找到 {len(papers)} 篇相關論文：\n\n"
+                    for p in papers:
+                        authors = "、".join(p.authors[:3]) + ("..." if len(p.authors) > 3 else "")
+                        result_text += f"📄 **{p.title}**\n"
+                        result_text += f"   - 作者：{authors}｜年份：{p.year or '未知'}\n"
+                        if p.abstract:
+                            result_text += f"   - 摘要：{p.abstract[:150]}...\n"
+                        result_text += "\n"
+                    result_text += "*(以上搜尋到的論文已自動分析並存入「論文摘要」記錄頁中，您可以切換分頁查看)*"
+                    
+                    suggestions = await self._generate_suggestions("search", result_text, role_context, message)
+                    return {"type": "search", "content": result_text, "papers": [p.model_dump() for p in papers], "suggestions": suggestions}
+                
+                elif name == "generate_comparison_matrix":
+                    summaries = []
+                    seen = set()
+                    for sums in self._summaries.values():
+                        for s in sums:
+                            if s.title.lower() not in seen:
+                                seen.add(s.title.lower())
+                                summaries.append(s)
+                    if len(summaries) < 2:
+                        return {"type": "chat", "content": "目前已分析的論文數量不足（至少需要 2 篇），請先上傳或搜尋論文後再生成比較矩陣。"}
+                    matrix = await self.matrix_skill.build_matrix(summaries, role_context=full_context)
+                    self._matrix_cache[session_id] = matrix
+                    self._save_session_data()
+                    
+                    suggestions = await self._generate_suggestions("matrix", matrix, role_context, message)
+                    return {"type": "matrix", "content": matrix, "suggestions": suggestions}
+                
+                elif name == "analyze_research_direction":
+                    matrix = self._matrix_cache.get(session_id)
+                    if not matrix:
+                        return {"type": "chat", "content": "請先生成文獻比較矩陣，再要求分析研究方向。"}
+                    
+                    # 計算圖譜指標
+                    from skills.graph_skill import SessionGraphSkill
+                    summaries = self.get_summaries(session_id)
+                    graph_insights_str = "尚無足夠文獻建立圖譜指標（至少需要 2 篇）。"
+                    if len(summaries) >= 2:
+                        try:
+                            g_skill = SessionGraphSkill()
+                            metrics = g_skill.compute_graph_metrics(summaries)
+                            
+                            infl_str = "\n".join([f"- **{x['title']}** (PageRank重要度: {x['pagerank']:.4f})" for x in metrics.get("influence", [])[:3]])
+                            
+                            comm_str = ""
+                            for cid, papers in metrics.get("communities", {}).items():
+                                comm_str += f"- 技術流派/社群 {cid}:\n"
+                                for p in papers:
+                                    comm_str += f"  * {p}\n"
+                            
+                            bridges = [x for x in metrics.get("bridges", []) if x['betweenness'] > 0]
+                            bridge_str = "\n".join([f"- **{x['title']}** (Betweenness橋接度: {x['betweenness']:.4f})" for x in bridges[:3]])
+                            if not bridge_str:
+                                bridge_str = "- 尚無顯著的跨領域橋接文獻。"
+                                
+                            graph_insights_str = f"1. 核心文獻排名 (PageRank):\n{infl_str}\n\n2. 技術社群分組 (Louvain):\n{comm_str}\n\n3. 跨領域橋接文獻 (Betweenness):\n{bridge_str}"
+                        except Exception as ge:
+                            logger.warning(f"Failed to compute graph metrics for directions: {ge}")
+                            graph_insights_str = "圖譜指標計算失敗，僅使用矩陣分析。"
+
+                    report = await self.direction_skill.analyze(matrix, role_context=full_context, graph_insights=graph_insights_str)
+                    self._direction_cache[session_id] = report
+                    self._save_session_data()
+                    
+                    suggestions = await self._generate_suggestions("direction", report, role_context, message)
+                    return {"type": "direction", "content": report, "suggestions": suggestions}
+                
+                elif name == "set_research_direction":
+                    research_dir = args.get("research_direction") or ""
+                    
                     self.state_skill.update_state(
                         session_id,
-                        large_direction=large if large else None,
-                        medium_direction=medium if medium else None,
-                        small_direction=small if small else None
+                        research_direction=research_dir if research_dir else None
                     )
-                
-                role_state = self.state_skill.get_state(session_id)
+                    
+                    role_state = self.state_skill.get_state(session_id)
+                    role_context = role_state.get_search_context()
+                    full_context = role_state.get_full_hierarchy_desc()
+                    
+                    search_query = research_dir or message
+                    translated_query = await self._translate_query_to_english(search_query)
+                    translated_context = await self._translate_query_to_english(role_context) if role_context else ""
+                    papers = await self.search_skill.search(translated_query, context=translated_context, limit=2)
+                    
+                    result_text = f"🎯 **已為您設定並儲存研究方向：**\n"
+                    if research_dir: result_text += f"- **研究方向**：{research_dir}\n"
+                    
+                    result_text += f"\n🔍 **已自動為您檢索並分析相關論文：**\n\n"
+                    
+                    if papers:
+                        import uuid
+                        for idx, p in enumerate(papers):
+                            p_content = p.abstract or "無摘要"
+                            paper_id = p.paper_id or str(uuid.uuid4())[:8]
+                            summary = await self.analysis_skill.summarize(
+                                paper_id=paper_id,
+                                title=p.title,
+                                authors=p.authors,
+                                year=p.year,
+                                content=p_content
+                            )
+                            if session_id not in self._summaries:
+                                self._summaries[session_id] = []
+                            if not any(x.title.lower() == summary.title.lower() for x in self._summaries[session_id]):
+                                self._summaries[session_id].append(summary)
+                        self._save_session_data()
                 role_context = role_state.get_search_context()
                 full_context = role_state.get_full_hierarchy_desc()
                 
-                search_query = small or medium or large or query or message
+                # 自動搜尋論文
+                search_query = query if query else (role_context or message)
                 translated_query = await self._translate_query_to_english(search_query)
                 translated_context = await self._translate_query_to_english(role_context) if role_context else ""
                 papers = await self.search_skill.search(translated_query, context=translated_context, limit=2)
                 
                 result_text = f"🎯 **已為您設定並儲存研究方向：**\n"
-                if role_state.large_direction: result_text += f"- **大方向**：{role_state.large_direction}\n"
-                if role_state.medium_direction: result_text += f"- **中方向**：{role_state.medium_direction}\n"
-                if role_state.small_direction: result_text += f"- **小方向**：{role_state.small_direction}\n"
+                if role_context: result_text += f"- **研究方向**：{role_context}\n"
                 
                 result_text += f"\n🔍 **已自動為您檢索並分析相關論文：**\n\n"
                 
                 if papers:
                     import uuid
                     for idx, p in enumerate(papers):
-                        content_paper = p.abstract or "無摘要"
+                        content = p.abstract or "無摘要"
                         paper_id = p.paper_id or str(uuid.uuid4())[:8]
+                        
+                        # 自動為這幾篇論文生成摘要
                         summary = await self.analysis_skill.summarize(
                             paper_id=paper_id,
                             title=p.title,
                             authors=p.authors,
                             year=p.year,
-                            content=content_paper
+                            content=content
                         )
+                        
                         if session_id not in self._summaries:
                             self._summaries[session_id] = []
+                        # 避免重複加入
                         if not any(x.title.lower() == summary.title.lower() for x in self._summaries[session_id]):
                             self._summaries[session_id].append(summary)
+                    
                     self._save_session_data()
                     result_text += "*(以上論文摘要已自動存入「論文摘要」記錄頁中，您可以切換分頁查看)*"
                 else:
@@ -656,105 +934,9 @@ class AgentCore:
                 return {
                     "type": "analyze",
                     "content": result_text,
-                    "papers": [p.model_dump() for p in papers] if papers else [],
+                    "papers": [p.model_dump() for p in papers],
                     "suggestions": suggestions
                 }
-
-            elif intent == "search":
-                translated_query = await self._translate_query_to_english(query)
-                translated_context = await self._translate_query_to_english(role_context) if role_context else ""
-                papers = await self.search_skill.search(translated_query, context=translated_context)
-                import uuid
-                summary_tasks = [self.analysis_skill.summarize(paper_id=p.paper_id or str(uuid.uuid4())[:8], title=p.title, authors=p.authors, year=p.year, content=p.abstract or "無摘要") for p in papers]
-                if summary_tasks:
-                    try:
-                        summaries = await asyncio.gather(*summary_tasks, return_exceptions=True)
-                        if session_id not in self._summaries:
-                            self._summaries[session_id] = []
-                        for s in summaries:
-                            if not isinstance(s, Exception) and not any(x.title.lower() == s.title.lower() for x in self._summaries[session_id]):
-                                self._summaries[session_id].append(s)
-                        self._save_session_data()
-                        
-                        # 自動從搜尋出來的第一篇論文摘要推導並設定研究方向
-                        valid_summaries = [s for s in summaries if not isinstance(s, Exception)]
-                        if valid_summaries:
-                            await self._infer_and_update_direction(
-                                session_id,
-                                valid_summaries[0].title,
-                                valid_summaries[0].keywords,
-                                valid_summaries[0].research_goal + " " + valid_summaries[0].main_findings
-                            )
-                    except Exception as e:
-                        logger.warning(f"Auto-summarizing failed: {e}")
-                result_text = f"已找到 {len(papers)} 篇相關論文：\n\n"
-                for p in papers:
-                    authors = "、".join(p.authors[:3]) + ("..." if len(p.authors) > 3 else "")
-                    result_text += f"📄 **{p.title}**\n"
-                    result_text += f"   - 作者：{authors}｜年份：{p.year or '未知'}\n"
-                    if p.abstract:
-                        result_text += f"   - 摘要：{p.abstract[:150]}...\n"
-                    result_text += "\n"
-                result_text += "*(以上搜尋到的論文已自動分析並存入「論文摘要」記錄頁中，您可以切換分頁查看)*"
-                
-                suggestions = await self._generate_suggestions("search", result_text, role_context, message)
-                return {"type": "search", "content": result_text, "papers": [p.model_dump() for p in papers] if papers else [], "suggestions": suggestions}
-
-            elif intent == "matrix":
-                summaries_objs = self._summaries.get(session_id, [])
-                if len(summaries_objs) < 2:
-                    return {"type": "chat", "content": "目前已分析的論文數量不足（至少需要 2 篇），請先上傳或搜尋論文後再生成比較矩陣。"}
-                matrix = await self.matrix_skill.build_matrix(summaries_objs, role_context=full_context)
-                self._matrix_cache[session_id] = matrix
-                self._save_session_data()
-                
-                suggestions = await self._generate_suggestions("matrix", matrix, role_context, message)
-                return {"type": "matrix", "content": matrix, "suggestions": suggestions}
-
-            elif intent == "direction":
-                matrix = self._matrix_cache.get(session_id)
-                if not matrix:
-                    summaries_objs = self._summaries.get(session_id, [])
-                    if len(summaries_objs) >= 2:
-                        matrix = await self.matrix_skill.build_matrix(summaries_objs, role_context=full_context)
-                        self._matrix_cache[session_id] = matrix
-                        self._save_session_data()
-                    else:
-                        return {"type": "chat", "content": "目前已分析的論文數量不足（至少需要 2 篇），請先上傳或搜尋論文後再生成比較矩陣。"}
-                
-                # 計算圖譜指標
-                from skills.graph_skill import SessionGraphSkill
-                summaries = self.get_summaries(session_id)
-                graph_insights_str = "尚無足夠文獻建立圖譜指標（至少需要 2 篇）。"
-                if len(summaries) >= 2:
-                    try:
-                        g_skill = SessionGraphSkill()
-                        metrics = g_skill.compute_graph_metrics(summaries)
-                        
-                        infl_str = "\n".join([f"- **{x['title']}** (PageRank重要度: {x['pagerank']:.4f})" for x in metrics.get("influence", [])[:3]])
-                        
-                        comm_str = ""
-                        for cid, papers in metrics.get("communities", {}).items():
-                            comm_str += f"- 技術流派/社群 {cid}:\n"
-                            for p in papers:
-                                comm_str += f"  * {p}\n"
-                        
-                        bridges = [x for x in metrics.get("bridges", []) if x['betweenness'] > 0]
-                        bridge_str = "\n".join([f"- **{x['title']}** (Betweenness橋接度: {x['betweenness']:.4f})" for x in bridges[:3]])
-                        if not bridge_str:
-                            bridge_str = "- 尚無顯著的跨領域橋接文獻。"
-                            
-                        graph_insights_str = f"1. 核心文獻排名 (PageRank):\n{infl_str}\n\n2. 技術社群分組 (Louvain):\n{comm_str}\n\n3. 跨領域橋接文獻 (Betweenness):\n{bridge_str}"
-                    except Exception as ge:
-                        logger.warning(f"Failed to compute graph metrics for directions: {ge}")
-                        graph_insights_str = "圖譜指標計算失敗，僅使用矩陣分析。"
-
-                report = await self.direction_skill.analyze(matrix, role_context=full_context, graph_insights=graph_insights_str)
-                self._direction_cache[session_id] = report
-                self._save_session_data()
-                
-                suggestions = await self._generate_suggestions("direction", report, role_context, message)
-                return {"type": "direction", "content": report, "suggestions": suggestions}
 
             else:
                 # 一般對話
@@ -778,7 +960,11 @@ class AgentCore:
                 
                 chat_model = genai.GenerativeModel(
                     model_name=self.MODEL_NAME,
-                    system_instruction=sys_prompt
+                    system_instruction=sys_prompt,
+                    generation_config=genai.GenerationConfig(
+                        temperature=0.7,
+                        max_output_tokens=1024
+                    )
                 )
                 response = await asyncio.to_thread(
                     chat_model.generate_content,
@@ -786,7 +972,7 @@ class AgentCore:
                 )
                 reply = response.text
                 history.append({"role": "model", "parts": [reply]})
-                self._chat_sessions[session_id] = history[-20:]
+                self._chat_sessions[session_id] = history[-20:]  # 保留最近 20 則
                 
                 suggestions = await self._generate_suggestions("chat", reply, role_context, message)
                 return {"type": "chat", "content": reply, "suggestions": suggestions}

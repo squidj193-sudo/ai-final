@@ -217,7 +217,7 @@ export default function App() {
 
   const [showRoleModal, setShowRoleModal] = useState(false)
   const [showAdvanced, setShowAdvanced] = useState(false)
-  const [roleForm, setRoleForm] = useState({ large: '', medium: '', small: '' })
+  const [roleForm, setRoleForm] = useState({ researchDirection: '' })
   const [roleDesc, setRoleDesc] = useState('尚未設定研究方向')
   const [summaryKey, setSummaryKey] = useState(0)
 
@@ -331,9 +331,7 @@ export default function App() {
       const d = await getRoleState(sessionId)
       setRoleDesc(d.description)
       setRoleForm({
-        large: d.state.large_direction || '',
-        medium: d.state.medium_direction || '',
-        small: d.state.small_direction || '',
+        researchDirection: d.state.research_direction || '',
       })
 
       const [sumsRes, matRes, dirRes] = await Promise.all([
@@ -526,13 +524,13 @@ export default function App() {
             <div className="stepper-steps">
               
               {/* Step 1 */}
-              <div className={`step-item ${roleForm.large ? 'completed' : 'active'} ${aiRecommendedStep === 1 ? 'recommended' : ''}`} onClick={() => setShowRoleModal(true)}>
+              <div className={`step-item ${roleForm.researchDirection ? 'completed' : 'active'} ${aiRecommendedStep === 1 ? 'recommended' : ''}`} onClick={() => setShowRoleModal(true)}>
                 <div className="step-number">
                   🎯
                   {aiRecommendedStep === 1 && <span className="recommended-dot" />}
                 </div>
                 <div className="step-label">研究定位</div>
-                <div className="step-status-text">{roleForm.large ? '已設定' : '待定位'}</div>
+                <div className="step-status-text">{roleForm.researchDirection ? '已設定' : '待定位'}</div>
               </div>
               
               <div className={`step-line ${summariesCount >= 2 ? 'completed' : ''}`} />
@@ -623,7 +621,7 @@ export default function App() {
                   </span>
                 </div>
                 
-                {roleForm.large ? (
+                {roleForm.researchDirection ? (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                     <div className="direction-pill" style={{
                       background: 'rgba(99, 102, 241, 0.12)',
@@ -635,7 +633,7 @@ export default function App() {
                       fontWeight: '500'
                     }}>
                       <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', marginRight: '4px' }}>🎯</span>
-                      {roleForm.large}
+                      {roleForm.researchDirection}
                     </div>
                   </div>
                 ) : (
@@ -685,12 +683,12 @@ export default function App() {
                     您可以在此手動輸入或微調目前的研究大方向，儲存後即可生效。
                   </p>
                   <div className="direction-field" style={{ maxWidth: '400px' }}>
-                    <label>研究方向 (大方向)</label>
+                    <label>研究方向</label>
                     <input
                       id="large-direction-input"
-                      value={roleForm.large}
-                      onChange={e => setRoleForm(p => ({ ...p, large: e.target.value }))}
-                      placeholder="例：光電、材料科學、人工智慧、永續發展與能源"
+                      value={roleForm.researchDirection}
+                      onChange={e => setRoleForm({ researchDirection: e.target.value })}
+                      placeholder="例：鈣鈦礦太陽能電池元件效能、大型語言模型微調"
                     />
                   </div>
                 </div>

@@ -61,15 +61,13 @@ export async function setDirection(sessionId, direction) {
   return res.json()
 }
 
-export async function updateRoleState(sessionId, { large, medium, small }) {
+export async function updateRoleState(sessionId, { researchDirection }) {
   const res = await fetch(`${BASE_URL}/role-state`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       session_id: sessionId,
-      large_direction: large || null,
-      medium_direction: medium || null,
-      small_direction: small || null,
+      research_direction: researchDirection || null,
     }),
   })
   if (!res.ok) throw new Error(await res.text())
