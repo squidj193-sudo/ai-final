@@ -184,7 +184,9 @@ class SearchSkill:
                     title_text = title_elem.text.strip().replace('\n', ' ') if title_elem is not None else "（無標題）"
                     
                     id_tag = entry.find('atom:id', ns)
-                    paper_id = "arxiv:" + id_tag.text.split('/abs/')[-1].split('v')[0] if id_tag is not None else ""
+                    arxiv_url = id_tag.text.strip() if id_tag is not None else ""
+                    # arXiv ID 格式：arxiv:XXXX.XXXXX，供內部識別用
+                    paper_id = "arxiv:" + arxiv_url.split('/abs/')[-1].split('v')[0] if arxiv_url else ""
                     
                     authors = [
                         a.find('atom:name', ns).text.strip() 
@@ -198,16 +200,14 @@ class SearchSkill:
                     summary = entry.find('atom:summary', ns)
                     abstract = summary.text.strip().replace('\n', ' ') if summary is not None else None
                     
-                    url_tag = entry.find('atom:id', ns)
-                    paper_url = url_tag.text if url_tag is not None else None
-                    
+                    # url 傳入 arxiv.org 的可點擊連結（前端展示「📖 原文」按鈕用）
                     results.append(PaperResult(
                         paper_id=paper_id,
                         title=title_text,
                         authors=authors,
                         year=year,
                         abstract=abstract,
-                        url=paper_url,
+                        url=arxiv_url,  # 直接存 arxiv.org URL
                         doi=None
                     ))
                 logger.info(f"arXiv fallback successfully retrieved {len(results)} papers.")

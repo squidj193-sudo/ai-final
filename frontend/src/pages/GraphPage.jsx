@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { Network, DataSet } from 'vis-network/standalone/esm/vis-network.min.js'
 import { getGraph } from '../api.js'
 import './GraphPage.css'
 
@@ -29,30 +30,6 @@ export default function GraphPage({ sessionId, activePage }) {
   
   const containerRef = useRef(null)
   const networkRef = useRef(null)
-  const [visLoaded, setVisLoaded] = useState(false)
-
-  // 1. 動態載入 Vis.js CDN (避免 bundler 過大，且更安全)
-  useEffect(() => {
-    if (window.vis) {
-      setVisLoaded(true)
-      return
-    }
-    const script = document.createElement('script')
-    script.src = 'https://unpkg.com/vis-network/standalone/umd/vis-network.min.js'
-    script.async = true
-    script.onload = () => setVisLoaded(true)
-    script.onerror = () => setError('無法載入 Vis.js 圖表渲染庫，請檢查您的網路連線。')
-    document.body.appendChild(script)
-
-    const link = document.createElement('link')
-    link.rel = 'stylesheet'
-    link.href = 'https://unpkg.com/vis-network/styles/vis-network.min.css'
-    document.head.appendChild(link)
-
-    return () => {
-      // 保持全域庫以加速之後的加載
-    }
-  }, [])
 
   // 2. 獲取圖譜原始數據
   const loadGraphData = async () => {
@@ -73,12 +50,14 @@ export default function GraphPage({ sessionId, activePage }) {
   }
 
   useEffect(() => {
-    loadGraphData()
-  }, [sessionId])
+    if (activePage === 'graph') {
+      loadGraphData()
+    }
+  }, [sessionId, activePage])
 
   // 3. 核心 Vis.js 渲染與過濾邏輯
   useEffect(() => {
-    if (!visLoaded || !containerRef.current || !rawData.nodes || rawData.nodes.length === 0) return
+    if (!containerRef.current || !rawData.nodes || rawData.nodes.length === 0) return
     // 當前分頁不是圖譜時，不進行畫布初始化或重繪，避免 display none 下寬高被誤判為 0
     if (activePage !== 'graph') return
 
@@ -119,8 +98,8 @@ export default function GraphPage({ sessionId, activePage }) {
       }
     })
 
-    const visNodes = new window.vis.DataSet(formattedNodes)
-    const visEdges = new window.vis.DataSet(filteredEdges)
+    const visNodes = new DataSet(formattedNodes)
+    const visEdges = new DataSet(filteredEdges)
 
     const data = { nodes: visNodes, edges: visEdges }
     const options = {
@@ -167,7 +146,7 @@ export default function GraphPage({ sessionId, activePage }) {
       }
     }
 
-    const network = new window.vis.Network(containerRef.current, data, options)
+    const network = new Network(containerRef.current, data, options)
     networkRef.current = network
 
     // 第一次繪製完成後，執行一次 fit() 以居中適應
@@ -207,7 +186,7 @@ export default function GraphPage({ sessionId, activePage }) {
         networkRef.current = null
       }
     }
-  }, [visLoaded, rawData, threshold, activePage])
+  }, [rawData, threshold, activePage])
 
   return (
     <div className="graph-page">

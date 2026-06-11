@@ -221,7 +221,11 @@ class AgentCore:
             return {"intent": "search", "query": query}
         elif any(kw in msg_lower for kw in ["矩陣", "對比", "比較表格", "matrix"]):
             return {"intent": "matrix", "query": ""}
-        elif any(kw in msg_lower for kw in ["方向建議", "研究方向", "研究題目", "可行題目", "課題", "direction"]):
+        elif any(kw in msg_lower for kw in [
+            "方向建議", "研究方向", "研究題目", "可行題目", "課題", "direction",
+            "找出題目", "幫我找題目", "可行的題目", "研究缺口", "gap",
+            "找方向", "推薦題目", "題目建議", "方向分析", "分析方向",
+        ]):
             return {"intent": "direction", "query": ""}
 
         # 2. Fallback to Gemini
@@ -295,19 +299,33 @@ class AgentCore:
             # 移除常見的包裝引號
             translated = translated.strip('"\'`')
             
-            # 偵測是否產生了幻覺/指令外洩（例如長度過長、包含換行、包含指令描述）
+            # 先嘗試解析 JSON 陣列或清理 JSON 包裝格式
+            cleaned_translated = translated
+            if cleaned_translated.startswith("["):
+                try:
+                    import json
+                    parsed_list = json.loads(cleaned_translated)
+                    if isinstance(parsed_list, list) and len(parsed_list) > 0:
+                        cleaned_translated = parsed_list[0]
+                except Exception:
+                    pass
+            
+            # 移除 Markdown 標記、括號及新線
+            cleaned_translated = re.sub(r'```(?:json)?', '', cleaned_translated).strip()
+            cleaned_translated = cleaned_translated.replace("\n", " ").replace("\r", " ").strip()
+            
+            # 偵測是否產生了幻覺/指令外洩（例如長度過長、包含指令描述）
             bad_keywords = ["role:", "task:", "translate", "semantic scholar", "optimized keywords", "punctuation", "format requirements", "input:"]
             is_hallucination = (
-                "\n" in translated 
-                or len(translated) > 80 
-                or any(bk in translated.lower() for bk in bad_keywords)
+                len(cleaned_translated) > 120 
+                or any(bk in cleaned_translated.lower() for bk in bad_keywords)
             )
             
-            if is_hallucination:
+            if is_hallucination or not cleaned_translated:
                 logger.warning(f"Detected query translation hallucination/prompt leak, using original query. Raw response: {translated}")
                 return query.strip()
                 
-            return translated if translated else query
+            return cleaned_translated
         except Exception as e:
             logger.warning(f"Query translation failed: {e}, using original query.")
             return query
@@ -551,13 +569,8 @@ class AgentCore:
 
         elif intent == "matrix":
             logger.info("Zero-Turn: Direct comparison matrix generation triggered")
-            summaries = []
-            seen = set()
-            for sums in self._summaries.values():
-                for s in sums:
-                    if s.title.lower() not in seen:
-                        seen.add(s.title.lower())
-                        summaries.append(s)
+            # 只取當前 session 的摘要，避免跨 session 資料污染
+            summaries = self._summaries.get(session_id, [])
             if len(summaries) < 2:
                 return {"type": "chat", "content": "目前已分析的論文數量不足（至少需要 2 篇），請先上傳或搜尋論文後再生成比較矩陣。"}
             matrix = await self.matrix_skill.build_matrix(summaries, role_context=full_context)
@@ -571,13 +584,8 @@ class AgentCore:
             logger.info("Zero-Turn: Direct research direction suggestions triggered")
             matrix = self._matrix_cache.get(session_id)
             if not matrix:
-                summaries = []
-                seen = set()
-                for sums in self._summaries.values():
-                    for s in sums:
-                        if s.title.lower() not in seen:
-                            seen.add(s.title.lower())
-                            summaries.append(s)
+                # 只取當前 session 的摘要，避免跨 session 資料污染
+                summaries = self._summaries.get(session_id, [])
                 if len(summaries) >= 2:
                     matrix = await self.matrix_skill.build_matrix(summaries, role_context=full_context)
                     self._matrix_cache[session_id] = matrix

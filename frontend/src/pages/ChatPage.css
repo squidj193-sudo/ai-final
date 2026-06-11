@@ -308,3 +308,89 @@
     transform: translateY(0);
   }
 }
+
+/* ─── 論文連結卡片列 ─── */
+.paper-links-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 10px;
+  padding-left: 48px;
+  max-width: 720px;
+  width: 100%;
+  animation: slideUp 0.3s ease-out both;
+}
+
+.paper-link-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 8px;
+  padding: 7px 12px;
+  font-size: 12px;
+}
+
+.paper-link-title {
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
+}
+
+.paper-link-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.paper-link-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  text-decoration: none;
+  background: rgba(99, 102, 241, 0.12);
+  color: #a5b4fc;
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.paper-link-btn:hover {
+  background: rgba(99, 102, 241, 0.25);
+  color: #c7d2fe;
+  border-color: rgba(99, 102, 241, 0.5);
+  transform: translateY(-1px);
+}
+
+.paper-link-ss {
+  background: rgba(16, 185, 129, 0.1);
+  color: #6ee7b7;
+  border-color: rgba(16, 185, 129, 0.2);
+}
+
+.paper-link-ss:hover {
+  background: rgba(16, 185, 129, 0.22);
+  color: #a7f3d0;
+  border-color: rgba(16, 185, 129, 0.45);
+}
+
+.paper-link-arxiv {
+  background: rgba(251, 146, 60, 0.1);
+  color: #fdba74;
+  border-color: rgba(251, 146, 60, 0.2);
+}
+
+.paper-link-arxiv:hover {
+  background: rgba(251, 146, 60, 0.22);
+  color: #fed7aa;
+  border-color: rgba(251, 146, 60, 0.45);
+}

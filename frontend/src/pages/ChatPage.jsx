@@ -76,6 +76,67 @@ export default function ChatPage({
     return icons[type] || '🤖'
   }
 
+  const renderPaperLinks = (papers) => {
+    if (!papers || papers.length === 0) return null
+    return (
+      <div className="paper-links-row">
+        {papers.map((p, i) => {
+          // 原文連結優先順序：doi > url > 無
+          const originalUrl = p.doi
+            ? `https://doi.org/${p.doi}`
+            : p.url || null
+          // Semantic Scholar 連結：只在 paper_id 是有效 S2 hash（不含 "arxiv:" 前綴）時顯示
+          const isValidS2Id = p.paper_id && !p.paper_id.startsWith('arxiv:')
+          // arXiv 連結：當 paper_id 以 "arxiv:" 開頭時，改顯示 arXiv 按鈕
+          const arxivId = p.paper_id?.startsWith('arxiv:')
+            ? p.paper_id.replace('arxiv:', '')
+            : null
+
+          return (
+            <div key={i} className="paper-link-card">
+              <span className="paper-link-title" title={p.title}>{p.title}</span>
+              <div className="paper-link-actions">
+                {originalUrl && (
+                  <a
+                    href={originalUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="paper-link-btn"
+                    title={p.doi ? `DOI: ${p.doi}` : '查看原文'}
+                  >
+                    📖 原文
+                  </a>
+                )}
+                {isValidS2Id && (
+                  <a
+                    href={`https://www.semanticscholar.org/paper/${p.paper_id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="paper-link-btn paper-link-ss"
+                    title="Semantic Scholar"
+                  >
+                    🔍 S2
+                  </a>
+                )}
+                {arxivId && (
+                  <a
+                    href={`https://arxiv.org/abs/${arxivId}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="paper-link-btn paper-link-arxiv"
+                    title="arXiv"
+                  >
+                    📄 arXiv
+                  </a>
+                )}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    )
+  }
+
   return (
     <div className="chat-page">
       {/* 訊息列表 */}
@@ -101,6 +162,7 @@ export default function ChatPage({
                 )}
               </div>
             </div>
+            {msg.role === 'assistant' && msg.type === 'search' && msg.papers && renderPaperLinks(msg.papers)}
             {msg.role === 'assistant' && msg.suggestions && msg.suggestions.length > 0 && index === messages.length - 1 && (
               <div className="suggestions-container">
                 {msg.suggestions.map((sug, i) => (

@@ -40,6 +40,28 @@ export default function SummaryPage({ sessionId }) {
     a.click()
   }
 
+  const exportCsv = () => {
+    const esc = (v) => `"${String(v || '').replace(/"/g, '""')}"`
+    const headers = ['標題', '作者', '年份', '研究目的', '研究方法', '主要發現', '研究限制', '關鍵字']
+    const rows = summaries.map(s => [
+      esc(s.title),
+      esc((s.authors || []).join('、')),
+      s.year || '',
+      esc(s.research_goal),
+      esc(s.methodology),
+      esc(s.main_findings),
+      esc(s.limitations),
+      esc((s.keywords || []).join('、')),
+    ])
+    // \uFEFF = UTF-8 BOM，讓 Excel 正確顯示中文
+    const csv = '\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = 'paper-summaries.csv'
+    a.click()
+  }
+
   return (
     <div className="summary-page">
       <div className="summary-header">
@@ -57,6 +79,9 @@ export default function SummaryPage({ sessionId }) {
             />
           </div>
           <button className="btn btn-ghost" onClick={load} id="refresh-summaries">↻ 重新整理</button>
+          <button className="btn btn-ghost" onClick={exportCsv} disabled={!summaries.length} id="export-summaries-csv">
+            📊 匯出 CSV
+          </button>
           <button className="btn btn-primary" onClick={exportMd} disabled={!summaries.length} id="export-summaries">
             📥 匯出 Markdown
           </button>
@@ -76,9 +101,9 @@ export default function SummaryPage({ sessionId }) {
         </div>
       ) : (
         <div className="summaries-grid">
-          {filtered.map(s => (
+          {filtered.map((s, index) => (
             <div
-              key={s.paper_id}
+              key={`${index}-${s.paper_id || 'no-id'}`}
               className={`summary-card glass-card ${selected === s.paper_id ? 'selected' : ''}`}
               onClick={() => setSelected(selected === s.paper_id ? null : s.paper_id)}
             >
@@ -94,8 +119,8 @@ export default function SummaryPage({ sessionId }) {
               </div>
 
               <div className="keywords-row">
-                {s.keywords?.map(k => (
-                  <span key={k} className="badge badge-purple">{k}</span>
+                {s.keywords?.map((k, kIdx) => (
+                  <span key={`${kIdx}-${k}`} className="badge badge-purple">{k}</span>
                 ))}
               </div>
 
