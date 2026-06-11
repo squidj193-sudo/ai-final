@@ -91,15 +91,16 @@ class AgentCore:
     def __init__(self):
         api_key = os.getenv("GEMINI_API_KEY")
         genai.configure(api_key=api_key)
-        self._chat_model = genai.GenerativeModel(
+        from tools.model_helper import FallbackGenerativeModel
+        self._chat_model = FallbackGenerativeModel(
             self.MODEL_NAME,
             tools=[search_academic_papers, generate_comparison_matrix, analyze_research_direction, set_research_direction]
         )
-        self._intent_model = genai.GenerativeModel(
+        self._intent_model = FallbackGenerativeModel(
             self.MODEL_NAME,
             generation_config=genai.GenerationConfig(
                 temperature=0.1,
-                max_output_tokens=32,
+                max_output_tokens=128,
                 response_mime_type="application/json"
             ),
         )
@@ -135,6 +136,17 @@ class AgentCore:
                 
                 # 同步恢復 RoleState
                 for k, v in data.get("role_states", {}).items():
+                    # 舊資料相容性遷移
+                    if not v.get("research_direction"):
+                        parts = []
+                        if v.get("large_direction"):
+                            parts.append(v["large_direction"])
+                        if v.get("medium_direction"):
+                            parts.append(v["medium_direction"])
+                        if v.get("small_direction"):
+                            parts.append(v["small_direction"])
+                        if parts:
+                            v["research_direction"] = " > ".join(parts)
                     self.state_skill._states[k] = RoleState(**v)
                 
                 # 同步重建 _chat_sessions 作為 LLM 對話快取
@@ -333,7 +345,7 @@ class AgentCore:
         # 如果已經進展到論文摘要階段，且大、中、小方向都已經設定完整，就不再覆寫
         has_summaries = bool(self.get_summaries(session_id))
         current_state = self.state_skill.get_state(session_id)
-        if has_summaries and current_state.large_direction and current_state.medium_direction and current_state.small_direction:
+        if has_summaries and current_state.research_direction:
             return # 已經設定完整且有論文摘要，不覆寫
             
         # 動態調整 Prompt，區分「特定論文」與「一般對話」
@@ -402,14 +414,14 @@ class AgentCore:
             small = clean_dir(small)
             
             if large:
+                inferred_parts = [x for x in [large, medium, small] if x]
+                inferred_dir = " > ".join(inferred_parts) if inferred_parts else large
                 self.state_skill.update_state(
                     session_id,
-                    large_direction=large,
-                    medium_direction=None,
-                    small_direction=None
+                    research_direction=inferred_dir
                 )
                 self._save_session_data()
-                logger.info(f"Automatically inferred and updated research direction for session {session_id}: {large}")
+                logger.info(f"Automatically inferred and updated research direction for session {session_id}: {inferred_dir}")
         except Exception as e:
             logger.warning(f"Failed to infer research direction: {e}")
 
@@ -726,7 +738,8 @@ class AgentCore:
 
             # 用 chat_model (配備 Tools) 進行對話，讓 Gemini 判斷是否需要 Function Call
             sys_prompt = SYSTEM_PROMPT.format(role_context=full_context)
-            chat_model = genai.GenerativeModel(
+            from tools.model_helper import FallbackGenerativeModel
+            chat_model = FallbackGenerativeModel(
                 model_name=self.MODEL_NAME,
                 system_instruction=sys_prompt,
                 tools=[search_academic_papers, generate_comparison_matrix, analyze_research_direction, set_research_direction]
@@ -958,7 +971,8 @@ class AgentCore:
                 history = self._chat_sessions.get(session_id, [])
                 history.append({"role": "user", "parts": [message]})
                 
-                chat_model = genai.GenerativeModel(
+                from tools.model_helper import FallbackGenerativeModel
+                chat_model = FallbackGenerativeModel(
                     model_name=self.MODEL_NAME,
                     system_instruction=sys_prompt,
                     generation_config=genai.GenerationConfig(

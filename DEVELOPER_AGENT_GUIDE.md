@@ -114,3 +114,12 @@ npm run dev
 2.  **明確列出下一步計畫**：在 [開發日誌.md](file:///c:/Users/User/Downloads/1/ai-final/%E9%96%8B%E7%99%BC%E6%97%A5%E8%AA%8C.md) 的「待辦與下一步」段落中，更新已完成事項，並羅列未完成事項之優先順序，以便下一個 Agent 能立刻接軌。
 3.  **嚴格保護約定配置**：例如核心模型指定使用 `gemma-4-26b-a4b-it`。非經使用者明確指示，不得更換 `.env`、`MODELS.md` 中規定的系統模型。若有任何模型更動，必須於開發日誌特別標記原因。
 
+## 🚫 嚴禁變更與架構邊界 (Guaranteed Architectural Rules)
+
+為了防止優化項目在後續的自動測試與反覆修改中被意外還原，接手的 AI Agent **必須嚴格遵守以下系統設計邊界**：
+
+1. **嚴禁改回三層研究方向**：系統已全面精簡為**單一層級的「研究方向」(`research_direction`)**。嚴禁在 `agent_core.py`、`main.py`、`state_skill.py` 或前端頁面中重新引進 `large_direction`、`medium_direction` 或 `small_direction` 等欄位。
+2. **保留 Lazy Loading（延遲載入）優化**：所有大型科學計算庫（如 `networkx`、`numpy`、`sklearn` 等）必須保持在 `graph_skill.py` 的**函式內部導入**，禁止將其移至檔案頂端全域導入，以維持極速啟動效能。
+3. **保留 Persistent HTTP Client（持久化連線池）**：`SearchSkill` 中必須繼續使用全域持久的 `self.client = httpx.AsyncClient()` 以重用 TCP 連線池，禁止改回每次搜尋時重複 instantiate 的 `async with httpx.AsyncClient()`。
+4. **保留 Rule-based Fast Pass（零延遲快速通道）**：意圖偵測函式 `detect_intent` 中必須維持關鍵字優先過濾的快取設計，在匹配到搜尋/矩陣/方向等請求時，直接由本地常規邏輯觸發對應 Skills，不得使其退化為每次皆由 LLM 作出 Function Calling。
+

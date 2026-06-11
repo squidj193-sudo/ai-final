@@ -112,12 +112,29 @@ class SearchSkill:
                     await asyncio.sleep(1 + attempt)
                     continue
 
-        # 若 API 完全超時或回報 429 失敗，嘗試回傳本機相似快取（備用方案）
+        # 若 API 完全超時或回報 429 失敗，嘗試使用 arXiv 備援，若再失敗則回傳本機相似快取
         if data is None:
-            # 尋找包含部分關鍵字的快取
+            arxiv_results = await self.search_arxiv(full_query, limit)
+            if arxiv_results:
+                self._cache[cache_key] = arxiv_results
+                self._save_cache()
+                return arxiv_results
+
+            # 尋找包含部分關鍵字的快取 (使用關鍵字重疊度比對)
+            query_words = set(full_query.lower().split())
+            best_match = None
+            max_overlap = 0
             for k, val in self._cache.items():
-                if full_query.lower() in k.lower():
-                    return val
+                k_query = k.split("__limit_")[0].lower()
+                k_words = set(k_query.split())
+                overlap = len(query_words & k_words)
+                if overlap > max_overlap:
+                    max_overlap = overlap
+                    best_match = val
+            
+            if best_match and max_overlap > 0:
+                return best_match
+
             if last_error:
                 if isinstance(last_error, httpx.HTTPStatusError) and last_error.response.status_code == 429:
                     raise RuntimeError("學術 API 連線過於頻繁（429 Too Many Requests），請稍候再試。系統已自動套用安全保護。")
@@ -140,6 +157,64 @@ class SearchSkill:
         self._cache[cache_key] = results
         self._save_cache()
         return results
+
+    async def search_arxiv(self, query: str, limit: int = 10) -> list[PaperResult]:
+        """
+        當 Semantic Scholar 遇到 429 或超時，使用 arXiv API 進行降級檢索。
+        """
+        import xml.etree.ElementTree as ET
+        import logging
+        logger = logging.getLogger("search_skill")
+        logger.info(f"Triggering arXiv fallback search for query: '{query}'")
+        
+        url = "https://export.arxiv.org/api/query"
+        params = {
+            "search_query": f"all:{query}",
+            "max_results": limit
+        }
+        
+        try:
+            resp = await self.client.get(url, params=params)
+            if resp.status_code == 200:
+                root = ET.fromstring(resp.text)
+                results = []
+                ns = {'atom': 'http://www.w3.org/2005/Atom'}
+                for entry in root.findall('atom:entry', ns):
+                    title_elem = entry.find('atom:title', ns)
+                    title_text = title_elem.text.strip().replace('\n', ' ') if title_elem is not None else "（無標題）"
+                    
+                    id_tag = entry.find('atom:id', ns)
+                    paper_id = "arxiv:" + id_tag.text.split('/abs/')[-1].split('v')[0] if id_tag is not None else ""
+                    
+                    authors = [
+                        a.find('atom:name', ns).text.strip() 
+                        for a in entry.findall('atom:author', ns) 
+                        if a.find('atom:name', ns) is not None
+                    ]
+                    
+                    published = entry.find('atom:published', ns)
+                    year = int(published.text[:4]) if published is not None else None
+                    
+                    summary = entry.find('atom:summary', ns)
+                    abstract = summary.text.strip().replace('\n', ' ') if summary is not None else None
+                    
+                    url_tag = entry.find('atom:id', ns)
+                    paper_url = url_tag.text if url_tag is not None else None
+                    
+                    results.append(PaperResult(
+                        paper_id=paper_id,
+                        title=title_text,
+                        authors=authors,
+                        year=year,
+                        abstract=abstract,
+                        url=paper_url,
+                        doi=None
+                    ))
+                logger.info(f"arXiv fallback successfully retrieved {len(results)} papers.")
+                return results
+        except Exception as e:
+            logger.warning(f"arXiv fallback search failed: {e}")
+        return []
 
     async def fetch_paper_by_id_or_url(self, query: str) -> Optional[PaperResult]:
         """

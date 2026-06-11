@@ -286,10 +286,67 @@
           "預測模型"
         ]
       }
+    ],
+    "e2e_horseracing_1781078750": [
+      {
+        "paper_id": "0cb31897058ef59d73ae7b932ddfe64677b70d56",
+        "title": "Aero-Engine RUL Prediction Based on SE-SFResNet Enhanced by improved Tianji’s Horse Racing Optimization",
+        "authors": [
+          "Kunfeng Yao",
+          "Dawei He",
+          "Guiyan Hu",
+          "Renbin Zhan",
+          "Pengjie Shao",
+          "Jingnan Zhang"
+        ],
+        "year": 2025,
+        "research_goal": "旨在解決航空引擎剩餘使用壽命（RUL）預測中，預測準確度與計算複雜度之間的權衡問題。",
+        "methodology": "提出一種結合 Squeeze-and-Excitation (SE) 模組與 SF-Residual Neural Network 的混合架構 (SE-SFResNet)，並利用改進後的 TIS-THRO 演算法進行超參數優化。",
+        "main_findings": "SE 模組能有效增強特徵表示並提升計算效率，而 TIS-THRO 演算法則透過全域探索避免陷入局部最佳解。實驗結果顯示，該方法在 NASA C-MPASS 資料集上的預測效果與模型複雜度均優於傳統的 ResNet 與 CNN-BiLSTM 方法。",
+        "limitations": "論文內容未明確提及研究限制。",
+        "keywords": [
+          "航空引擎",
+          "剩餘使用壽命 (RUL)",
+          "SE-SFResNet",
+          "TIS-THRO",
+          "預測模型"
+        ]
+      }
+    ],
+    "e2e_horseracing_1781078879": [
+      {
+        "paper_id": "0cb31897058ef59d73ae7b932ddfe64677b70d56",
+        "title": "Aero-Engine RUL Prediction Based on SE-SFResNet Enhanced by improved Tianji’s Horse Racing Optimization",
+        "authors": [
+          "Kunfeng Yao",
+          "Dawei He",
+          "Guiyan Hu",
+          "Renbin Zhan",
+          "Pengjie Shao",
+          "Jingnan Zhang"
+        ],
+        "year": 2025,
+        "research_goal": "旨在解決航空引擎剩餘使用壽命（RUL）預測中，預測準確度與計算複雜度之間的權衡問題。",
+        "methodology": "提出了一種結合擠壓與激勵（SE）模組的 SF-Residual Neural Network (SE-SFResNet) 框架，並利用改進的 TIS-THRO 演算法對超參數進行系統性優化。",
+        "main_findings": "SE 模組能有效動態校準通道特徵以提升效率，而 TIS-THRO 演算法透過引導式全域探索避免了局部最佳解。實驗結果顯示，該方法在 NASA C-MPASS 資料集上的預測效果與模型複雜度均優於傳統的 ResNet 與 CNN-BiLSTM 方法。",
+        "limitations": "論文內容未明確提及具體的研究限制。",
+        "keywords": [
+          "航空引擎",
+          "剩餘使用壽命 (RUL)",
+          "SE-SFResNet",
+          "TIS-THRO",
+          "預測模型"
+        ]
+      }
     ]
   },
-  "matrix_cache": {},
-  "direction_cache": {},
+  "matrix_cache": {
+    "e2e_horseracing_1781078750": "你好，我是你的學術研究助理。針對你提供的三篇論文，我已將其整理為文獻比較矩陣。\n\n需要特別說明的是，其中兩篇論文（`856b8a6aa55999ad92f1fdb6a3862fbd64452d6e` 與 `0cb31897058ef59d73ae7b932ddfe64677b70d56`）在原始資料中存在資訊缺失或領域差異，我已根據現有內容進行標註。\n\n### 賽馬動態賠率預測模型相關文獻比較矩陣\n\n| 論文標題 | 研究方法 | 主要發現 | 研究限制 | 關鍵字 |\n| :--- | :--- | :--- | :--- | :--- |\n| **An Ensemble Model for Horse Racing Prediction Using Odds Movements** | XGBoost 集成學習結合投注量分析 | 動態賠率波動具有顯著預測力，ROI 較靜態模型提升 12% | 對突發性的投注量異常極為敏感 | 賠率波動, 賽馬, 預測, XGBoost |\n| **A SHAP-Based Horse Racing Prediction Model...** | 資訊缺失 | 資訊缺失 | 資訊缺失 | 資訊缺失 |\n| **Aero-Engine RUL Prediction Based on SE-SFResNet...** (註：此為航空工程領域) | SE-SFResNet 混合框架 + TIS-THRO 優化算法 | 在 RUL 預測準確度與計算複雜度上優於傳統 CNN/ResNet | 未提及 | 航空發動機, RUL, SE-SFResNet, TIS-THRO |\n\n---\n\n### 研究缺口分析 (Research Gap Analysis)\n\n作為專注於「賽馬動態賠率預測模型」的研究者，從上述文獻中可以觀察到該領域仍存在以下尚未被充分探討的關鍵缺口：\n\n1.  **模型對「市場操縱」與「異常投注」的魯棒性 (Robustness to Market Manipulation)：**\n    現有研究（如 Smith & Brown）指出模型對投注量異常敏感。然而，賽馬市場常存在「大戶操縱」或「假性賠率波動」，目前的機器學習模型多將其視為雜訊或錯誤訊號。未來研究應探討如何引入**異常檢測機制 (Anomaly Detection)**，以過濾掉非理性投注對賠率預測的干擾。\n\n2.  **可解釋性與決策透明度 (Explainability in High-Stakes Betting)：**\n    雖然 SHAP 等可解釋性工具已開始被應用（如第二篇論文標題所示），但目前賽馬預測模型多偏向「黑箱」預測。在動態賠率環境下，如何將「賠率變動的因果關係」轉化為可供投注者理解的決策依據（例如：解釋為何賠率下降是因為馬匹狀態改善，而非單純的資金湧入），是提升模型實用價值的關鍵。\n\n3.  **跨領域優化算法的遷移應用 (Cross-Domain Algorithm Transfer)：**\n    第三篇論文展示了將「賽馬優化算法 (THRO)」應用於工業預測的潛力。反之，我們應思考如何將工業界先進的**動態參數優化技術**（如該文提到的 TIS-THRO）反向引入賽馬賠率預測中，以解決賽馬數據在時間序列上高度非平穩 (Non-stationary) 的特性，提升模型在極短時間內的適應能力。\n\n4.  **即時數據流的延遲與同步問題 (Latency and Data Synchronization)：**\n    現有研究多假設數據為理想狀態，但實際賽馬賠率數據存在 API 延遲與不同數據源間的同步誤差。目前缺乏針對「高頻交易環境下」如何處理數據延遲對模型預測準確度影響的系統性研究。",
+    "e2e_horseracing_1781078879": "你好，我是你的學術研究助理。針對你提供的三篇文獻，我已將其整理為比較矩陣，並針對「動態賠率賽馬預測模型」領域進行了研究缺口分析。\n\n### 文獻比較矩陣\n\n| 論文標題 | 研究方法 | 主要發現 | 研究限制 | 關鍵字 |\n| :--- | :--- | :--- | :--- | :--- |\n| **An Ensemble Model for Horse Racing Prediction Using Odds Movements** | XGBoost 集成學習結合投注量分析 | 動態賠率波動具顯著預測力，ROI 較靜態模型提升 12% | 對突發性投注量異常極為敏感 | 賠率波動, 賽馬預測, XGBoost |\n| **A SHAP-Based Horse Racing Prediction Model with Variable Contribution Analysis in Gamification Environments** | 未提供 (推測為 SHAP 可解釋性模型) | 未提供 | 未提供 | 未提供 |\n| **Aero-Engine RUL Prediction Based on SE-SFResNet Enhanced by improved Tianji’s Horse Racing Optimization** | SE-SFResNet 混合框架 + 改進型天驥賽馬優化算法 (TIS-THRO) | 在 RUL 預測準確度與模型複雜度上優於傳統 ResNet 與 CNN-BiLSTM | 未提及 | 航空發動機, RUL, SE-SFResNet, TIS-THRO |\n\n---\n\n### 研究缺口分析 (Research Gap Analysis)\n\n作為專注於「動態賠率賽馬預測模型」的研究者，從上述文獻中可以觀察到以下尚未被充分探討的關鍵面向：\n\n1.  **跨領域演算法的遷移應用潛力 (Cross-domain Algorithm Transfer)：**\n    第三篇論文提到的「天驥賽馬優化算法 (THRO)」本質上是受賽馬機制啟發的啟發式優化算法，目前多用於工業預測（如 RUL）。然而，該算法在「賽馬預測」本身的超參數調優或特徵選擇上尚未被應用。未來研究可探討將此類仿生優化算法回饋至賽馬預測模型中，以解決動態賠率數據的高維度特徵選擇問題。\n\n2.  **模型可解釋性與決策信任度 (Explainability vs. Performance)：**\n    第二篇論文提及了 SHAP（可解釋人工智慧），這在賽馬預測中至關重要。目前的動態賠率模型（如第一篇的 XGBoost）多為「黑箱」模型，投資者難以理解模型為何在特定賠率波動下做出投注決策。如何將 SHAP 等可解釋性工具與即時動態賠率流（Real-time Odds Stream）結合，以提供「可解釋的即時建議」，是目前學術界與實務界的重要缺口。\n\n3.  **對抗異常波動的魯棒性 (Robustness to Market Anomalies)：**\n    第一篇論文明確指出模型對「投注量異常」敏感。在真實賽馬市場中，存在大量由內幕消息或大戶操盤引起的「假性賠率波動」。目前的模型多假設市場數據為常態分佈或線性演變，缺乏針對「市場操縱」或「異常突發事件」的魯棒性防禦機制（如對抗性訓練或異常檢測濾波器）。\n\n4.  **動態賠率與賽場環境變數的非線性交互作用：**\n    現有研究多將賠率視為獨立變數或僅與投注量掛鉤。然而，賠率的動態變化往往與賽道狀況（場地軟硬度）、馬匹體能狀態及騎師策略高度耦合。缺乏一個能同時處理「時間序列賠率數據」與「靜態環境變數」的深度學習架構（如結合 Transformer 的注意力機制來捕捉賠率與環境變數間的長距離依賴關係）。"
+  },
+  "direction_cache": {
+    "e2e_horseracing_1781078879": "你好！我是你的學術研究顧問。針對你提供的文獻比較矩陣與知識圖譜分析結果，我已為你完成了深度學術剖析。\n\n目前的領域狀態顯示，該研究領域正處於**從「純預測性能導向」向「可解釋性與魯棒性導向」轉型的過渡期**。以下是針對你研究背景的深度分析報告。\n\n---\n\n### 1. 領域大方向概覽 (Research Streams)\n\n基於文獻矩陣的技術特徵與圖譜的 Louvain 分群，目前該領域主要呈現以下三個流派：\n\n*   **流派 A：金融計量與集成學習流派 (Financial-Econometric ML)**\n    *   **核心焦點：** 專注於賠率波動（Odds Movement）作為時間序列特徵的挖掘。\n    *   **方法論：** 利用 XGBoost、LightGBM 等樹模型處理結構化表格數據，強調 ROI（投資回報率）的實證表現。\n*   **流派 B：可解釋人工智慧流派 (XAI-Driven Prediction)**\n    *   **核心焦點：** 解決黑箱模型在博弈決策中的信任問題。\n    *   **方法論：** 導入 SHAP、LIME 等後驗解釋工具，分析模型變數貢獻度，旨在將模型決策邏輯視覺化。\n*   **流派 C：仿生優化與深度學習混合流派 (Bio-inspired Deep Learning)**\n    *   **核心焦點：** 將賽馬演算法作為優化器（Optimizer），應用於複雜工業或預測場景。\n    *   **方法論：** 結合 ResNet、Transformer 等深度架構，並利用啟發式算法（如天驥賽馬優化）進行超參數尋優。\n\n---\n\n### 2. 研究缺口識別 (Research Gap Identification)\n\n根據圖譜中連線的稀疏度與橋接度分析，以下領域存在顯著的研究真空：\n\n1.  **「算法回流」的缺口 (Reverse Algorithm Flow)：**\n    第三篇文獻將賽馬優化算法應用於工業預測，但該算法在賽馬預測領域本身卻存在「算法未回流」的現象。這暗示了領域間的知識交流存在單向性，缺乏將優化演算法與賽馬預測模型進行深度耦合的實證研究。\n2.  **「低橋接度」的孤島效應：**\n    第三篇文獻的 Betweenness 橋接度較低，顯示其在賽馬預測領域中處於「邊緣地帶」。這代表將「複雜深度學習架構 (SE-SFResNet)」直接應用於賽馬預測的研究極少，是一個潛在的技術跨越點。\n3.  **「動態性」與「穩定性」的權衡缺口：**\n    目前文獻對「異常賠率」的魯棒性討論極少，且缺乏將「市場操縱監測」與「預測模型」整合的端到端框架。\n\n---\n\n### 3. 可行研究建議 (Research Proposals)\n\n| 研究題目 | 建議方法 | 預期貢獻 | 可行性 |\n| :--- | :--- | :--- | :--- |\n| **基於 TIS-THRO 優化的動態賠率高維特徵選擇模型** | 利用「天驥賽馬優化算法」自動化篩選動態賠率中的關鍵時間點與特徵。 | 解決高維賠率數據中的冗餘問題，提升模型收斂速度與預測準確度。 | 中 |\n| **整合 SHAP 的動態賠率對抗性魯棒預測框架** | 建立「對抗性訓練 (Adversarial Training)」濾波器，並以 SHAP 監控模型對異常波動的敏感度。 | 提升模型對市場操縱的抵抗力，並提供模型決策的「信任度指標」。 | 高 |\n| **基於時間序列 Transformer 與領域知識嵌入的賽馬預測** | 結合 Transformer 的注意力機制與賽場環境變數（場地、騎師）的嵌入層 (Embedding)。 | 捕捉賠率波動與環境變數間的非線性長距離依賴，突破傳統集成模型侷限。 | 低 (需大量數據) |\n\n---\n\n### 學術顧問總結建議：\n\n若你希望在短時間內產出高品質論文，我建議優先切入**「研究建議 1」**。因為這能直接解決現有模型特徵選擇困難的問題，且天驥賽馬優化算法 (THRO) 已有現成框架，你只需將其應用於賽馬預測數據集，即可形成極具創新性的「算法回流」論點，這在學術發表上具有極高的說服力。\n\n你需要我針對上述任一建議，進一步提供詳細的「研究架構設計」或「模型偽代碼」嗎？"
+  },
   "conversations": [],
   "chat_history": {
     "benchmark_session": [
@@ -1316,68 +1373,271 @@
         "suggestions": null,
         "papers": null
       }
+    ],
+    "e2e_horseracing_1781078750": [
+      {
+        "id": 1781078750530,
+        "role": "user",
+        "content": "我想研究結合機器學習與動態賠率的賽馬預測模型",
+        "type": "chat"
+      },
+      {
+        "id": 1781078758362,
+        "role": "assistant",
+        "content": "⚠️ 發生未知錯誤：Expecting value: line 1 column 1 (char 0)",
+        "type": "error",
+        "suggestions": [
+          "重試對話"
+        ],
+        "papers": null
+      },
+      {
+        "id": 1781078758362,
+        "role": "user",
+        "content": "幫我搜尋賽馬預測模型的相關文獻",
+        "type": "chat"
+      },
+      {
+        "id": 1781078767215,
+        "role": "assistant",
+        "content": "已找到 2 篇相關論文：\n\n📄 **A SHAP-Based Horse Racing Prediction Model with Variable Contribution Analysis in Gamification Environments**\n   - 作者：Hyeongwoo Song、Ji-yeoun Lee｜年份：2025\n\n📄 **Aero-Engine RUL Prediction Based on SE-SFResNet Enhanced by improved Tianji’s Horse Racing Optimization**\n   - 作者：Kunfeng Yao、Dawei He、Guiyan Hu...｜年份：2025\n   - 摘要：Accurate data-driven prediction of aero-engine Remaining Useful Life (RUL) inherently involves a trade-off between prediction accuracy and computation...\n\n*(以上搜尋到的論文已自動分析並存入「論文摘要」記錄頁中，您可以切換分頁查看)*",
+        "type": "search",
+        "suggestions": [
+          "這兩篇論文中提到的模型架構，有哪些具體的特徵工程（Feature Engineering）方法適合應用於賽馬賠率預測？",
+          "除了 SHAP 值之外，還有哪些可解釋性 AI（XAI）技術能有效提升賽馬預測模型的透明度與信任度？",
+          "在賽馬動態賠率預測中，如何處理市場情緒與突發資訊對賠率波動的影響？"
+        ],
+        "papers": [
+          {
+            "paper_id": "856b8a6aa55999ad92f1fdb6a3862fbd64452d6e",
+            "title": "A SHAP-Based Horse Racing Prediction Model with Variable Contribution Analysis in Gamification Environments",
+            "authors": [
+              "Hyeongwoo Song",
+              "Ji-yeoun Lee"
+            ],
+            "year": 2025,
+            "abstract": null,
+            "url": "https://www.semanticscholar.org/paper/856b8a6aa55999ad92f1fdb6a3862fbd64452d6e",
+            "doi": "10.7583/jkgs.2025.25.6.57"
+          },
+          {
+            "paper_id": "0cb31897058ef59d73ae7b932ddfe64677b70d56",
+            "title": "Aero-Engine RUL Prediction Based on SE-SFResNet Enhanced by improved Tianji’s Horse Racing Optimization",
+            "authors": [
+              "Kunfeng Yao",
+              "Dawei He",
+              "Guiyan Hu",
+              "Renbin Zhan",
+              "Pengjie Shao",
+              "Jingnan Zhang"
+            ],
+            "year": 2025,
+            "abstract": "Accurate data-driven prediction of aero-engine Remaining Useful Life (RUL) inherently involves a trade-off between prediction accuracy and computational complexity. This paper proposes a novel hybrid Squeeze-and-Excitation (SE) integrated with SF-Residual Neural Network (SE-SFResNet) framework, with hyperparameters systematically optimized through the Tianji’s Horse Racing Optimization improverd by Thinking Innovation Strategy (TIS-THRO). The framework embeds Squeeze-and-Excitation (SE) modules within SFResNet blocks to dynamically recalibrate channel features, which enhance both feature representation and computational efficiency. The TIS-THRO algorithm innovatively combines Thinking Innovation Strategy (TIS) with THRO, avoiding local optima through successful individual-guided global exploration to determine optimal network configurations. The method is verified by NASA’s Commercial Modular Aero-Propulsion System Simulation (C-MPASS) dataset. The results show that compared with the conventional ResNet and CNN-BiLSTM methods, the novel method has advantages in both RUL prediction effect and model complexity.",
+            "url": "https://www.semanticscholar.org/paper/0cb31897058ef59d73ae7b932ddfe64677b70d56",
+            "doi": "10.1109/BigDIA68682.2025.11383137"
+          }
+        ]
+      },
+      {
+        "id": 1781078767216,
+        "role": "user",
+        "content": "生成比較矩陣表格",
+        "type": "chat"
+      },
+      {
+        "id": 1781078772547,
+        "role": "assistant",
+        "content": "你好，我是你的學術研究助理。針對你提供的三篇論文，我已將其整理為文獻比較矩陣。\n\n需要特別說明的是，其中兩篇論文（`856b8a6aa55999ad92f1fdb6a3862fbd64452d6e` 與 `0cb31897058ef59d73ae7b932ddfe64677b70d56`）在原始資料中存在資訊缺失或領域差異，我已根據現有內容進行標註。\n\n### 賽馬動態賠率預測模型相關文獻比較矩陣\n\n| 論文標題 | 研究方法 | 主要發現 | 研究限制 | 關鍵字 |\n| :--- | :--- | :--- | :--- | :--- |\n| **An Ensemble Model for Horse Racing Prediction Using Odds Movements** | XGBoost 集成學習結合投注量分析 | 動態賠率波動具有顯著預測力，ROI 較靜態模型提升 12% | 對突發性的投注量異常極為敏感 | 賠率波動, 賽馬, 預測, XGBoost |\n| **A SHAP-Based Horse Racing Prediction Model...** | 資訊缺失 | 資訊缺失 | 資訊缺失 | 資訊缺失 |\n| **Aero-Engine RUL Prediction Based on SE-SFResNet...** (註：此為航空工程領域) | SE-SFResNet 混合框架 + TIS-THRO 優化算法 | 在 RUL 預測準確度與計算複雜度上優於傳統 CNN/ResNet | 未提及 | 航空發動機, RUL, SE-SFResNet, TIS-THRO |\n\n---\n\n### 研究缺口分析 (Research Gap Analysis)\n\n作為專注於「賽馬動態賠率預測模型」的研究者，從上述文獻中可以觀察到該領域仍存在以下尚未被充分探討的關鍵缺口：\n\n1.  **模型對「市場操縱」與「異常投注」的魯棒性 (Robustness to Market Manipulation)：**\n    現有研究（如 Smith & Brown）指出模型對投注量異常敏感。然而，賽馬市場常存在「大戶操縱」或「假性賠率波動」，目前的機器學習模型多將其視為雜訊或錯誤訊號。未來研究應探討如何引入**異常檢測機制 (Anomaly Detection)**，以過濾掉非理性投注對賠率預測的干擾。\n\n2.  **可解釋性與決策透明度 (Explainability in High-Stakes Betting)：**\n    雖然 SHAP 等可解釋性工具已開始被應用（如第二篇論文標題所示），但目前賽馬預測模型多偏向「黑箱」預測。在動態賠率環境下，如何將「賠率變動的因果關係」轉化為可供投注者理解的決策依據（例如：解釋為何賠率下降是因為馬匹狀態改善，而非單純的資金湧入），是提升模型實用價值的關鍵。\n\n3.  **跨領域優化算法的遷移應用 (Cross-Domain Algorithm Transfer)：**\n    第三篇論文展示了將「賽馬優化算法 (THRO)」應用於工業預測的潛力。反之，我們應思考如何將工業界先進的**動態參數優化技術**（如該文提到的 TIS-THRO）反向引入賽馬賠率預測中，以解決賽馬數據在時間序列上高度非平穩 (Non-stationary) 的特性，提升模型在極短時間內的適應能力。\n\n4.  **即時數據流的延遲與同步問題 (Latency and Data Synchronization)：**\n    現有研究多假設數據為理想狀態，但實際賽馬賠率數據存在 API 延遲與不同數據源間的同步誤差。目前缺乏針對「高頻交易環境下」如何處理數據延遲對模型預測準確度影響的系統性研究。",
+        "type": "matrix",
+        "suggestions": [
+          "針對賽馬市場的異常投注行為，有哪些具體的機器學習異常檢測演算法適合應用？",
+          "如何解決文獻中提到的資訊缺失問題，以完善賽馬動態賠率預測的比較矩陣？",
+          "除了 XGBoost，目前還有哪些深度學習架構在處理時間序列賠率數據上表現較佳？"
+        ],
+        "papers": null
+      },
+      {
+        "id": 1781078772547,
+        "role": "user",
+        "content": "分析文獻並給出可行的研究方向與題目建議",
+        "type": "chat"
+      },
+      {
+        "id": 1781078774445,
+        "role": "assistant",
+        "content": "⚠️ Gemini API 服務呼叫失敗：429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 15, model: gemini-3.1-flash-lite\nPlease retry in 42.560109526s. [links {\n  description: \"Learn more about Gemini API quotas\"\n  url: \"https://ai.google.dev/gemini-api/docs/rate-limits\"\n}\n, violations {\n  quota_metric: \"generativelanguage.googleapis.com/generate_content_free_tier_requests\"\n  quota_id: \"GenerateRequestsPerMinutePerProjectPerModel-FreeTier\"\n  quota_dimensions {\n    key: \"model\"\n    value: \"gemini-3.1-flash-lite\"\n  }\n  quota_dimensions {\n    key: \"location\"\n    value: \"global\"\n  }\n  quota_value: 15\n}\n, retry_delay {\n  seconds: 42\n}\n]。請確認您的網路連線與 `backend/.env` 中的金鑰配置。",
+        "type": "error",
+        "suggestions": [
+          "檢查金鑰設定",
+          "重試對話"
+        ],
+        "papers": null
+      }
+    ],
+    "e2e_horseracing_1781078879": [
+      {
+        "id": 1781078879852,
+        "role": "user",
+        "content": "我想研究結合機器學習與動態賠率的賽馬預測模型",
+        "type": "chat"
+      },
+      {
+        "id": 1781078884647,
+        "role": "assistant",
+        "content": "⚠️ 發生未知錯誤：Expecting value: line 1 column 1 (char 0)",
+        "type": "error",
+        "suggestions": [
+          "重試對話"
+        ],
+        "papers": null
+      },
+      {
+        "id": 1781078884648,
+        "role": "user",
+        "content": "幫我搜尋賽馬預測模型的相關文獻",
+        "type": "chat"
+      },
+      {
+        "id": 1781078892612,
+        "role": "assistant",
+        "content": "已找到 2 篇相關論文：\n\n📄 **A SHAP-Based Horse Racing Prediction Model with Variable Contribution Analysis in Gamification Environments**\n   - 作者：Hyeongwoo Song、Ji-yeoun Lee｜年份：2025\n\n📄 **Aero-Engine RUL Prediction Based on SE-SFResNet Enhanced by improved Tianji’s Horse Racing Optimization**\n   - 作者：Kunfeng Yao、Dawei He、Guiyan Hu...｜年份：2025\n   - 摘要：Accurate data-driven prediction of aero-engine Remaining Useful Life (RUL) inherently involves a trade-off between prediction accuracy and computation...\n\n*(以上搜尋到的論文已自動分析並存入「論文摘要」記錄頁中，您可以切換分頁查看)*",
+        "type": "search",
+        "suggestions": [
+          "這兩篇論文在動態賠率數據的處理上有什麼具體的技術差異？",
+          "除了 SHAP 值，還有哪些機器學習模型解釋性方法適用於賽馬預測？",
+          "這些模型在處理賽馬比賽中突發性賠率變動時，有哪些潛在的限制或挑戰？"
+        ],
+        "papers": [
+          {
+            "paper_id": "856b8a6aa55999ad92f1fdb6a3862fbd64452d6e",
+            "title": "A SHAP-Based Horse Racing Prediction Model with Variable Contribution Analysis in Gamification Environments",
+            "authors": [
+              "Hyeongwoo Song",
+              "Ji-yeoun Lee"
+            ],
+            "year": 2025,
+            "abstract": null,
+            "url": "https://www.semanticscholar.org/paper/856b8a6aa55999ad92f1fdb6a3862fbd64452d6e",
+            "doi": "10.7583/jkgs.2025.25.6.57"
+          },
+          {
+            "paper_id": "0cb31897058ef59d73ae7b932ddfe64677b70d56",
+            "title": "Aero-Engine RUL Prediction Based on SE-SFResNet Enhanced by improved Tianji’s Horse Racing Optimization",
+            "authors": [
+              "Kunfeng Yao",
+              "Dawei He",
+              "Guiyan Hu",
+              "Renbin Zhan",
+              "Pengjie Shao",
+              "Jingnan Zhang"
+            ],
+            "year": 2025,
+            "abstract": "Accurate data-driven prediction of aero-engine Remaining Useful Life (RUL) inherently involves a trade-off between prediction accuracy and computational complexity. This paper proposes a novel hybrid Squeeze-and-Excitation (SE) integrated with SF-Residual Neural Network (SE-SFResNet) framework, with hyperparameters systematically optimized through the Tianji’s Horse Racing Optimization improverd by Thinking Innovation Strategy (TIS-THRO). The framework embeds Squeeze-and-Excitation (SE) modules within SFResNet blocks to dynamically recalibrate channel features, which enhance both feature representation and computational efficiency. The TIS-THRO algorithm innovatively combines Thinking Innovation Strategy (TIS) with THRO, avoiding local optima through successful individual-guided global exploration to determine optimal network configurations. The method is verified by NASA’s Commercial Modular Aero-Propulsion System Simulation (C-MPASS) dataset. The results show that compared with the conventional ResNet and CNN-BiLSTM methods, the novel method has advantages in both RUL prediction effect and model complexity.",
+            "url": "https://www.semanticscholar.org/paper/0cb31897058ef59d73ae7b932ddfe64677b70d56",
+            "doi": "10.1109/BigDIA68682.2025.11383137"
+          }
+        ]
+      },
+      {
+        "id": 1781078892612,
+        "role": "user",
+        "content": "生成比較矩陣表格",
+        "type": "chat"
+      },
+      {
+        "id": 1781078898213,
+        "role": "assistant",
+        "content": "你好，我是你的學術研究助理。針對你提供的三篇文獻，我已將其整理為比較矩陣，並針對「動態賠率賽馬預測模型」領域進行了研究缺口分析。\n\n### 文獻比較矩陣\n\n| 論文標題 | 研究方法 | 主要發現 | 研究限制 | 關鍵字 |\n| :--- | :--- | :--- | :--- | :--- |\n| **An Ensemble Model for Horse Racing Prediction Using Odds Movements** | XGBoost 集成學習結合投注量分析 | 動態賠率波動具顯著預測力，ROI 較靜態模型提升 12% | 對突發性投注量異常極為敏感 | 賠率波動, 賽馬預測, XGBoost |\n| **A SHAP-Based Horse Racing Prediction Model with Variable Contribution Analysis in Gamification Environments** | 未提供 (推測為 SHAP 可解釋性模型) | 未提供 | 未提供 | 未提供 |\n| **Aero-Engine RUL Prediction Based on SE-SFResNet Enhanced by improved Tianji’s Horse Racing Optimization** | SE-SFResNet 混合框架 + 改進型天驥賽馬優化算法 (TIS-THRO) | 在 RUL 預測準確度與模型複雜度上優於傳統 ResNet 與 CNN-BiLSTM | 未提及 | 航空發動機, RUL, SE-SFResNet, TIS-THRO |\n\n---\n\n### 研究缺口分析 (Research Gap Analysis)\n\n作為專注於「動態賠率賽馬預測模型」的研究者，從上述文獻中可以觀察到以下尚未被充分探討的關鍵面向：\n\n1.  **跨領域演算法的遷移應用潛力 (Cross-domain Algorithm Transfer)：**\n    第三篇論文提到的「天驥賽馬優化算法 (THRO)」本質上是受賽馬機制啟發的啟發式優化算法，目前多用於工業預測（如 RUL）。然而，該算法在「賽馬預測」本身的超參數調優或特徵選擇上尚未被應用。未來研究可探討將此類仿生優化算法回饋至賽馬預測模型中，以解決動態賠率數據的高維度特徵選擇問題。\n\n2.  **模型可解釋性與決策信任度 (Explainability vs. Performance)：**\n    第二篇論文提及了 SHAP（可解釋人工智慧），這在賽馬預測中至關重要。目前的動態賠率模型（如第一篇的 XGBoost）多為「黑箱」模型，投資者難以理解模型為何在特定賠率波動下做出投注決策。如何將 SHAP 等可解釋性工具與即時動態賠率流（Real-time Odds Stream）結合，以提供「可解釋的即時建議」，是目前學術界與實務界的重要缺口。\n\n3.  **對抗異常波動的魯棒性 (Robustness to Market Anomalies)：**\n    第一篇論文明確指出模型對「投注量異常」敏感。在真實賽馬市場中，存在大量由內幕消息或大戶操盤引起的「假性賠率波動」。目前的模型多假設市場數據為常態分佈或線性演變，缺乏針對「市場操縱」或「異常突發事件」的魯棒性防禦機制（如對抗性訓練或異常檢測濾波器）。\n\n4.  **動態賠率與賽場環境變數的非線性交互作用：**\n    現有研究多將賠率視為獨立變數或僅與投注量掛鉤。然而，賠率的動態變化往往與賽道狀況（場地軟硬度）、馬匹體能狀態及騎師策略高度耦合。缺乏一個能同時處理「時間序列賠率數據」與「靜態環境變數」的深度學習架構（如結合 Transformer 的注意力機制來捕捉賠率與環境變數間的長距離依賴關係）。",
+        "type": "matrix",
+        "suggestions": [
+          "如何將天驥賽馬優化算法（THRO）具體應用於動態賠率模型的特徵選擇與參數優化？",
+          "針對動態賠率模型對突發性投注量異常敏感的問題，有哪些穩健性（Robustness）提升策略？",
+          "除了 XGBoost 與 SHAP，目前學界在處理賽馬動態賠率時，有哪些更先進的深度學習架構（如 Transformer 或 RNN 變體）？"
+        ],
+        "papers": null
+      },
+      {
+        "id": 1781078898214,
+        "role": "user",
+        "content": "分析文獻並給出可行的研究方向與題目建議",
+        "type": "chat"
+      },
+      {
+        "id": 1781078906118,
+        "role": "assistant",
+        "content": "你好！我是你的學術研究顧問。針對你提供的文獻比較矩陣與知識圖譜分析結果，我已為你完成了深度學術剖析。\n\n目前的領域狀態顯示，該研究領域正處於**從「純預測性能導向」向「可解釋性與魯棒性導向」轉型的過渡期**。以下是針對你研究背景的深度分析報告。\n\n---\n\n### 1. 領域大方向概覽 (Research Streams)\n\n基於文獻矩陣的技術特徵與圖譜的 Louvain 分群，目前該領域主要呈現以下三個流派：\n\n*   **流派 A：金融計量與集成學習流派 (Financial-Econometric ML)**\n    *   **核心焦點：** 專注於賠率波動（Odds Movement）作為時間序列特徵的挖掘。\n    *   **方法論：** 利用 XGBoost、LightGBM 等樹模型處理結構化表格數據，強調 ROI（投資回報率）的實證表現。\n*   **流派 B：可解釋人工智慧流派 (XAI-Driven Prediction)**\n    *   **核心焦點：** 解決黑箱模型在博弈決策中的信任問題。\n    *   **方法論：** 導入 SHAP、LIME 等後驗解釋工具，分析模型變數貢獻度，旨在將模型決策邏輯視覺化。\n*   **流派 C：仿生優化與深度學習混合流派 (Bio-inspired Deep Learning)**\n    *   **核心焦點：** 將賽馬演算法作為優化器（Optimizer），應用於複雜工業或預測場景。\n    *   **方法論：** 結合 ResNet、Transformer 等深度架構，並利用啟發式算法（如天驥賽馬優化）進行超參數尋優。\n\n---\n\n### 2. 研究缺口識別 (Research Gap Identification)\n\n根據圖譜中連線的稀疏度與橋接度分析，以下領域存在顯著的研究真空：\n\n1.  **「算法回流」的缺口 (Reverse Algorithm Flow)：**\n    第三篇文獻將賽馬優化算法應用於工業預測，但該算法在賽馬預測領域本身卻存在「算法未回流」的現象。這暗示了領域間的知識交流存在單向性，缺乏將優化演算法與賽馬預測模型進行深度耦合的實證研究。\n2.  **「低橋接度」的孤島效應：**\n    第三篇文獻的 Betweenness 橋接度較低，顯示其在賽馬預測領域中處於「邊緣地帶」。這代表將「複雜深度學習架構 (SE-SFResNet)」直接應用於賽馬預測的研究極少，是一個潛在的技術跨越點。\n3.  **「動態性」與「穩定性」的權衡缺口：**\n    目前文獻對「異常賠率」的魯棒性討論極少，且缺乏將「市場操縱監測」與「預測模型」整合的端到端框架。\n\n---\n\n### 3. 可行研究建議 (Research Proposals)\n\n| 研究題目 | 建議方法 | 預期貢獻 | 可行性 |\n| :--- | :--- | :--- | :--- |\n| **基於 TIS-THRO 優化的動態賠率高維特徵選擇模型** | 利用「天驥賽馬優化算法」自動化篩選動態賠率中的關鍵時間點與特徵。 | 解決高維賠率數據中的冗餘問題，提升模型收斂速度與預測準確度。 | 中 |\n| **整合 SHAP 的動態賠率對抗性魯棒預測框架** | 建立「對抗性訓練 (Adversarial Training)」濾波器，並以 SHAP 監控模型對異常波動的敏感度。 | 提升模型對市場操縱的抵抗力，並提供模型決策的「信任度指標」。 | 高 |\n| **基於時間序列 Transformer 與領域知識嵌入的賽馬預測** | 結合 Transformer 的注意力機制與賽場環境變數（場地、騎師）的嵌入層 (Embedding)。 | 捕捉賠率波動與環境變數間的非線性長距離依賴，突破傳統集成模型侷限。 | 低 (需大量數據) |\n\n---\n\n### 學術顧問總結建議：\n\n若你希望在短時間內產出高品質論文，我建議優先切入**「研究建議 1」**。因為這能直接解決現有模型特徵選擇困難的問題，且天驥賽馬優化算法 (THRO) 已有現成框架，你只需將其應用於賽馬預測數據集，即可形成極具創新性的「算法回流」論點，這在學術發表上具有極高的說服力。\n\n你需要我針對上述任一建議，進一步提供詳細的「研究架構設計」或「模型偽代碼」嗎？",
+        "type": "direction",
+        "suggestions": [
+          "如何針對「算法回流」缺口，設計一個將賽馬優化算法與預測模型深度耦合的實驗架構？",
+          "在追求模型可解釋性（XAI）的同時，如何平衡其與預測準確度（ROI）之間的權衡（Trade-off）？",
+          "針對動態賠率數據，有哪些具備魯棒性的時間序列特徵工程方法可以解決市場波動帶來的雜訊問題？"
+        ],
+        "papers": null
+      }
+    ],
+    "cs_student_sim_1781139891": [
+      {
+        "id": 1781139892429,
+        "role": "user",
+        "content": "我想研究結合機器學習與賠率的賽馬預測模型，做為我的資工畢業專題",
+        "type": "chat"
+      },
+      {
+        "id": 1781139895682,
+        "role": "assistant",
+        "content": "若要構建賽馬預測模型，建議先將賠率視為市場對馬匹勝率的隱性預測（Market Efficiency），並透過機器學習模型提取其與賽事特徵（如馬匹過往表現、場地狀況）間的殘差以獲取超額報酬。建議優先閱讀關於「效率市場假說」在博弈領域的應用文獻，並利用 XGBoost 或 LightGBM 等梯度提升樹模型處理高維度、非線性的賽事數據。此外，考量賽馬數據的時序特性，引入長短期記憶網路（LSTM）或 Transformer 架構來捕捉動態賠率變化，將能顯著提升模型對賽況變動的捕捉能力。",
+        "type": "chat",
+        "suggestions": [
+          "你能推薦這個領域的經典論文嗎？",
+          "這項技術目前的主要應用場景是什麼？",
+          "這個研究大方向下有哪些關鍵的技術瓶頸？"
+        ],
+        "papers": null
+      }
     ]
   },
   "role_states": {
     "benchmark_session": {
-      "large_direction": "人工智慧與資訊",
-      "medium_direction": null,
-      "small_direction": null
+      "research_direction": "人工智慧與資訊"
     },
     "e2e_horseracing_1781074994": {
-      "large_direction": "人工智慧與資訊",
-      "medium_direction": "預測分析與決策系統",
-      "small_direction": "基於動態賠率數據的賽馬結果預測"
+      "research_direction": "人工智慧與資訊 > 預測分析與決策系統 > 基於動態賠率數據的賽馬結果預測"
     },
     "e2e_horseracing_1781075093": {
-      "large_direction": "人工智慧與資訊",
-      "medium_direction": null,
-      "small_direction": null
+      "research_direction": "人工智慧與資訊"
     },
     "e2e_horseracing_1781075142": {
-      "large_direction": "人工智慧與資訊",
-      "medium_direction": "機器學習應用",
-      "small_direction": "賽馬預測模型與動態賠率分析"
+      "research_direction": "人工智慧與資訊 > 機器學習應用 > 賽馬預測模型與動態賠率分析"
     },
     "e2e_horseracing_1781075188": {
-      "large_direction": "人工智慧",
-      "medium_direction": "機器學習與預測分析",
-      "small_direction": "賽馬預測模型與動態賠率分析"
+      "research_direction": "人工智慧 > 機器學習與預測分析 > 賽馬預測模型與動態賠率分析"
     },
     "e2e_horseracing_1781075297": {
-      "large_direction": "人工智慧與資訊",
-      "medium_direction": null,
-      "small_direction": null
+      "research_direction": "人工智慧與資訊"
     },
     "e2e_horseracing_1781075441": {
-      "large_direction": "人工智慧與資訊",
-      "medium_direction": null,
-      "small_direction": null
+      "research_direction": "人工智慧與資訊"
     },
     "e2e_horseracing_1781075546": {
-      "large_direction": "人工智慧與資訊",
-      "medium_direction": null,
-      "small_direction": null
+      "research_direction": "人工智慧與資訊"
     },
     "e2e_horseracing_1781075687": {
-      "large_direction": "人工智慧與資訊",
-      "medium_direction": null,
-      "small_direction": null
+      "research_direction": "人工智慧與資訊"
     },
     "e2e_horseracing_1781075834": {
-      "large_direction": "人工智慧與資訊",
-      "medium_direction": "機器學習與預測分析",
-      "small_direction": "基於動態賠率的賽馬預測模型"
+      "research_direction": "人工智慧與資訊 > 機器學習與預測分析 > 基於動態賠率的賽馬預測模型"
     },
     "e2e_horseracing_1781076605": {
-      "large_direction": "人工智慧",
-      "medium_direction": "機器學習",
-      "small_direction": "結合動態賠率的賽馬預測模型"
+      "research_direction": "人工智慧 > 機器學習 > 結合動態賠率的賽馬預測模型"
     },
     "e2e_horseracing_1781077162": {
-      "large_direction": "人工智慧",
-      "medium_direction": "機器學習",
-      "small_direction": "賽馬預測模型"
+      "research_direction": "人工智慧 > 機器學習 > 賽馬預測模型"
+    },
+    "e2e_horseracing_1781078750": {
+      "research_direction": "人工智慧 > 機器學習 > 賽馬動態賠率預測模型"
+    },
+    "e2e_horseracing_1781078879": {
+      "research_direction": "人工智慧 > 機器學習 > 動態賠率賽馬預測模型"
     }
   }
 }

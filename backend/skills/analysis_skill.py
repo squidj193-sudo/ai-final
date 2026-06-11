@@ -46,7 +46,8 @@ class AnalysisSkill:
     def __init__(self):
         api_key = os.getenv("GEMINI_API_KEY")
         genai.configure(api_key=api_key)
-        self._model = genai.GenerativeModel(
+        from tools.model_helper import FallbackGenerativeModel
+        self._model = FallbackGenerativeModel(
             self.MODEL_NAME,
             generation_config=genai.GenerationConfig(temperature=0.2, max_output_tokens=4096),
         )

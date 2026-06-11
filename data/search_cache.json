@@ -30,5 +30,84 @@
     }
   ],
   "artificial intelligence and information systems horse racing outcome prediction machine learning dynamic odds__limit_10__year_all": [],
-  "結合動態賠率的賽馬預測模型__limit_2__year_all": []
+  "結合動態賠率的賽馬預測模型__limit_2__year_all": [],
+  "dynamic odds horse racing prediction models__limit_2__year_all": [
+    {
+      "paper_id": "856b8a6aa55999ad92f1fdb6a3862fbd64452d6e",
+      "title": "A SHAP-Based Horse Racing Prediction Model with Variable Contribution Analysis in Gamification Environments",
+      "authors": [
+        "Hyeongwoo Song",
+        "Ji-yeoun Lee"
+      ],
+      "year": 2025,
+      "abstract": null,
+      "url": "https://www.semanticscholar.org/paper/856b8a6aa55999ad92f1fdb6a3862fbd64452d6e",
+      "doi": "10.7583/jkgs.2025.25.6.57"
+    },
+    {
+      "paper_id": "9d939e6d070b43ce463bcb4778a38b16217c3105",
+      "title": "Tianji’s horse racing optimization (THRO): a new metaheuristic inspired by ancient wisdom and its engineering optimization applications",
+      "authors": [
+        "Liying Wang",
+        "Haiping Du",
+        "Zhenxing Zhang",
+        "Gang Hu",
+        "Seyedali Mirjalili",
+        "Nima Khodadadi",
+        "Abdelazim G. Hussien",
+        "Yingying Liao",
+        "Weiguo Zhao"
+      ],
+      "year": 2025,
+      "abstract": null,
+      "url": "https://www.semanticscholar.org/paper/9d939e6d070b43ce463bcb4778a38b16217c3105",
+      "doi": "10.1007/s10462-025-11269-9"
+    }
+  ],
+  "Explainable AI in healthcare CNN Transformer__limit_3__year_all": [
+    {
+      "paper_id": "arxiv:2604.00187",
+      "title": "Explainable AI for Blind and Low-Vision Users: Navigating Trust, Modality, and Interpretability in the Agentic Era",
+      "authors": [
+        "Abu Noman Md Sakib",
+        "Protik Dey",
+        "Zijie Zhang",
+        "Taslima Akter"
+      ],
+      "year": 2026,
+      "abstract": "Explainable Artificial Intelligence (XAI) is critical for ensuring trust and accountability, yet its development remains predominantly visual. For blind and low-vision (BLV) users, the lack of accessible explanations creates a fundamental barrier to the independent use of AI-driven assistive technologies. This problem intensifies as AI systems shift from single-query tools into autonomous agents that take multi-step actions and make consequential decisions across extended task horizons, where a single undetected error can propagate irreversibly before any feedback is available. This paper investigates the unique XAI requirements of the BLV community through a comprehensive analysis of user interviews and contemporary research. By examining usage patterns across environmental perception and decision support, we identify a significant modality gap. Empirical evidence suggests that while BLV users highly value conversational explanations, they frequently experience \"self-blame\" for AI failures. The paper concludes with a research agenda for accessible Explainable AI in agentic systems, advocating for multimodal interfaces, blame-aware explanation design, and participatory development.",
+      "url": "http://arxiv.org/abs/2604.00187v2",
+      "doi": null
+    },
+    {
+      "paper_id": "arxiv:2106.05568",
+      "title": "Explainable AI, but explainable to whom?",
+      "authors": [
+        "Julie Gerlings",
+        "Millie Søndergaard Jensen",
+        "Arisa Shollo"
+      ],
+      "year": 2021,
+      "abstract": "Advances in AI technologies have resulted in superior levels of AI-based model performance. However, this has also led to a greater degree of model complexity, resulting in 'black box' models. In response to the AI black box problem, the field of explainable AI (xAI) has emerged with the aim of providing explanations catered to human understanding, trust, and transparency. Yet, we still have a limited understanding of how xAI addresses the need for explainable AI in the context of healthcare. Our research explores the differing explanation needs amongst stakeholders during the development of an AI-system for classifying COVID-19 patients for the ICU. We demonstrate that there is a constellation of stakeholders who have different explanation needs, not just the 'user'. Further, the findings demonstrate how the need for xAI emerges through concerns associated with specific stakeholder groups i.e., the development team, subject matter experts, decision makers, and the audience. Our findings contribute to the expansion of xAI by highlighting that different stakeholders have different explanation needs. From a practical perspective, the study provides insights on how AI systems can be adjusted to support different stakeholders needs, ensuring better implementation and operation in a healthcare context.",
+      "url": "http://arxiv.org/abs/2106.05568v2",
+      "doi": null
+    },
+    {
+      "paper_id": "arxiv:2003.07678",
+      "title": "An Overview and Case Study of the Clinical AI Model Development Life Cycle for Healthcare Systems",
+      "authors": [
+        "Charles Lu",
+        "Julia Strout",
+        "Romane Gauriau",
+        "Brad Wright",
+        "Fabiola Bezerra De Carvalho Marcruz",
+        "Varun Buch",
+        "Katherine Andriole"
+      ],
+      "year": 2020,
+      "abstract": "Healthcare is one of the most promising areas for machine learning models to make a positive impact. However, successful adoption of AI-based systems in healthcare depends on engaging and educating stakeholders from diverse backgrounds about the development process of AI models. We present a broadly accessible overview of the development life cycle of clinical AI models that is general enough to be adapted to most machine learning projects, and then give an in-depth case study of the development process of a deep learning based system to detect aortic aneurysms in Computed Tomography (CT) exams. We hope other healthcare institutions and clinical practitioners find the insights we share about the development process useful in informing their own model development efforts and to increase the likelihood of successful deployment and integration of AI in healthcare.",
+      "url": "http://arxiv.org/abs/2003.07678v3",
+      "doi": null
+    }
+  ]
 }
