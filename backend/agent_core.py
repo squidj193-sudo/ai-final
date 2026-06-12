@@ -43,15 +43,15 @@ INTENT_PROMPT = """分析以下使用者訊息，判斷其意圖類型。
 - "search"：當使用者明確要求搜尋或查找文獻時。
 - "analyze"：當使用者要求分析或摘要某篇特定論文或主題時。
 - "matrix"：當使用者要求生成文獻比較矩陣或比較表格時。
-- "direction"：當使用者要求針對目前的文獻提出具體的研究方向或題目建議時。
-- "chat"：一般的對話、問候或無特定學術分析意圖時。
+- "direction"：當使用者明確要求系統針對當前已分析的文獻/比較矩陣生成正式的學術研究方向報告或課題建議時（例如：「生成研究方向建議」、「分析研究方向」、「建議研究方向」）。
+- "chat"：一般的對話、問候、學術概念討論、詢問某個主題可以做什麼研究（無特定分析報表意圖）時（例如：「貓的論文可以做甚麼」、「我想了解鈣鈦礦太陽能的背景」、「貓咪有論文可以做嗎」）。
 
 訊息：{message}
 
-請以繁體中文處理，只回傳以下 JSON 格式，不要包含任何額外文字或 Markdown 區塊：
+請以繁體中文處理，只回傳以下 JSON 格式，不要包含 any markdown 標記或額外說明，僅回傳 JSON 物件：
 {{
   "intent": "search" | "analyze" | "matrix" | "direction" | "set_direction" | "chat",
-  "query": "提取的關鍵字或主題（若有）"
+  "query": "提取的關鍵字或主題（若重選）"
 }}"""# ─── Gemini 原生工具定義 ───────────────────────────────────────────────
 def search_academic_papers(query: str) -> str:
     """
@@ -373,6 +373,10 @@ class AgentCore:
             # 一般對話推導
             prompt = f"""你是一個學術研究分類專家。請針對以下使用者的對話內容或研究想法，歸納推導出最適當的「大方向（學門領域）」、「中方向（子領域技術）」、「小方向（具體主題材料/特定技術）」。
 
+【重要指示】：
+1. 請聚焦於使用者在「學術層面討論的實際核心學科/技術主題」。
+2. 若對話脈絡最後的最新訊息是簡短的回應、追問真實性、或無實質研究主題的問答（例如：「是真的嗎」、「對」、「那真的有論文嗎」），請「忽略該簡短訊息的表面字意」，並根據「前文對話中所奠定的實際學術討論主題」（如貓咪研究、賽馬運動等）來推導並維持其方向。
+
 【分類定義與範例說明】：
 1. 大方向 (Large Direction)：最上層的主流領域範疇。
    - 例如：永續發展與能源、人工智慧與資訊、生醫健康、半導體與先進製造、光電物理。
@@ -381,7 +385,7 @@ class AgentCore:
 3. 小方向 (Small Direction)：最底層的具體研究主題、材料、演算法或特定技術應用。
    - 例如：鈣鈦礦太陽能電池、物體偵測、Chain-of-Thought (CoT) 推理、矽基電晶體、CRISPR 基因編輯。
 
-【使用者對話內容】：
+【使用者對話與研究脈絡】：
 "{abstract}"
 
 請務必精準回傳一個 JSON 物件，請勿包含 any markdown 標記（如 ```json）或額外文字，僅回傳 JSON 物件：
@@ -517,7 +521,15 @@ class AgentCore:
             if not has_summaries:
                 # 尚未進展到論文摘要：僅對有實質內容的訊息推導研究方向
                 if not _is_trivial:
-                    await self._infer_and_update_direction(session_id, "", [], message)
+                    # 彙整最近對話歷史作為脈絡，防止簡短追問導致的主題漂移
+                    history_list = self._chat_history.get(session_id, [])
+                    recent_history = history_list[-5:]
+                    history_context = "【對話歷史與當前研究脈絡】：\n"
+                    for msg in recent_history:
+                        role_name = "使用者" if msg.get("role") == "user" else "學術助理"
+                        history_context += f"{role_name}：{msg.get('content')}\n"
+                    
+                    await self._infer_and_update_direction(session_id, "", [], history_context)
                     # 重新取得更新後的 context
                     role_state = self.state_skill.get_state(session_id)
                     role_context = role_state.get_search_context()
