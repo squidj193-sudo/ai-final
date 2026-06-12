@@ -32,6 +32,13 @@ class RAGStore:
         self.db_path = Path(db_path)
         self.db_path.mkdir(parents=True, exist_ok=True)
 
+    @staticmethod
+    def sanitize_paper_id(paper_id: str) -> str:
+        """將 paper_id 中 Windows/Unix 不允許出現在檔名的字元（: * ? " < > | /）替換為底線"""
+        # 替換所有不合法的路徑字元
+        safe = re.sub(r'[\\/:*?"<>|]', '_', paper_id)
+        return safe.strip("._") or "unknown"
+
     def add_document(
         self,
         paper_id: str,
@@ -41,14 +48,17 @@ class RAGStore:
         overlap: int = 300,
     ) -> int:
         """將文件與元資料直接寫入本地 Markdown 與 JSON 檔案"""
+        safe_id = self.sanitize_paper_id(paper_id)
+        
         # 1. 寫入 Markdown 檔案
-        md_file = self.db_path / f"{paper_id}.md"
+        md_file = self.db_path / f"{safe_id}.md"
         md_file.write_text(content, encoding="utf-8")
 
-        # 2. 寫入 Metadata 檔案
-        meta_file = self.db_path / f"{paper_id}.json"
+        # 2. 寫入 Metadata 檔案（保留原始 paper_id 供邏輯使用）
+        meta_file = self.db_path / f"{safe_id}.json"
         meta_data = metadata or {}
-        meta_data["paper_id"] = paper_id
+        meta_data["paper_id"] = paper_id          # 保留原始 ID
+        meta_data["safe_paper_id"] = safe_id      # 儲存安全檔名版本
         meta_file.write_text(json.dumps(meta_data, ensure_ascii=False, indent=2), encoding="utf-8")
 
         # 3. 回傳切分的段落數

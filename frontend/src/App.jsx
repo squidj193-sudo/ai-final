@@ -4,7 +4,7 @@ import SummaryPage from './pages/SummaryPage.jsx'
 import MatrixPage from './pages/MatrixPage.jsx'
 import GraphPage from './pages/GraphPage.jsx'
 import DirectionPage from './pages/DirectionPage.jsx'
-import { updateRoleState, getRoleState, getConversations, saveConversations, uploadPaper, getChatHistory, saveChatHistory, deleteConversation, getSummaries, getMatrix, getDirection } from './api.js'
+import { updateRoleState, getRoleState, getConversations, saveConversations, uploadPaper, getChatHistory, saveChatHistory, deleteConversation, getSummaries, getMatrix, getDirection, resetSystem, importDemos, diagnoseSystem, downloadBackup, uploadRestore, getSystemConfig, saveSystemConfig, getRagDocuments, deleteRagDocument, rebuildRagIndex } from './api.js'
 import { v4 as uuidv4 } from 'uuid'
 import './App.css'
 
@@ -39,6 +39,24 @@ export default function App() {
   })
 
   const [aiRecommendedStep, setAiRecommendedStep] = useState(null)
+  
+  const [showToolsModal, setShowToolsModal] = useState(false)
+  const [diagnostics, setDiagnostics] = useState(null)
+  const [diagnosing, setDiagnosing] = useState(false)
+  const [actionLoading, setActionLoading] = useState(false)
+
+  // 系統工具箱擴充狀態
+  const [toolsActiveTab, setToolsActiveTab] = useState('diagnostics')
+  const [configForm, setConfigForm] = useState({
+    GEMINI_API_KEY: '',
+    SEMANTIC_SCHOLAR_API_KEY: '',
+    PAPERS_DB_PATH: '',
+    GEMINI_MODEL: ''
+  })
+  const [showApiKey, setShowApiKey] = useState(false)
+  const [ragDocs, setRagDocs] = useState([])
+  const [loadingRag, setLoadingRag] = useState(false)
+  const [savingConfig, setSavingConfig] = useState(false)
 
   useEffect(() => {
     localStorage.setItem('show_stepper', JSON.stringify(showStepper))
@@ -366,6 +384,186 @@ export default function App() {
     }
   }
 
+  const handleRunDiagnostics = async () => {
+    setDiagnosing(true)
+    try {
+      const data = await diagnoseSystem()
+      setDiagnostics(data)
+    } catch (e) {
+      alert(`診斷失敗：${e.message}`)
+    } finally {
+      setDiagnosing(false)
+    }
+  }
+
+  const handleResetSystem = async () => {
+    if (!window.confirm("⚠️ 您確定要初始化系統嗎？\n這將清除所有對話紀錄、已分析文獻快取、比較矩陣以及 RAG 知識庫中的所有論文！此操作無法復原！")) {
+      return
+    }
+    if (!window.confirm("‼️ 請再次確認：此操作會清除所有已上傳的 PDF 檔案與研究進度，您真的要重置嗎？")) {
+      return
+    }
+
+    setActionLoading(true)
+    try {
+      const res = await resetSystem()
+      
+      // 清空本地存儲快取
+      localStorage.clear()
+      
+      // 重新載入對話列表並切換
+      const data = await getConversations()
+      setConversations(data.conversations || [])
+      setSessionId(res.session_id)
+      
+      alert("✅ 系統已初始化完成，所有快取與資料已清空！")
+      setShowToolsModal(false)
+      setActivePage('chat')
+    } catch (e) {
+      alert(`重置失敗：${e.message}`)
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  const handleImportDemos = async () => {
+    setActionLoading(true)
+    try {
+      const res = await importDemos(sessionId)
+      if (res.imported > 0) {
+        alert(`✅ 成功匯入 ${res.imported} 篇示範文獻！\n系統已自動為您推導設定研究方向。\n現在您可以立即去「對話搜尋」檢視論文摘要、「比較矩陣」或「論文圖譜」測試功能。`)
+        refreshState()
+      } else {
+        alert("ℹ️ 示範文獻先前已匯入過，無需重複匯入。")
+      }
+      setShowToolsModal(false)
+    } catch (e) {
+      alert(`匯入失敗：${e.message}`)
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  // 加載系統設定
+  const loadConfig = async () => {
+    try {
+      const data = await getSystemConfig()
+      setConfigForm(data)
+    } catch (e) {
+      console.error("無法載入環境設定:", e)
+    }
+  }
+
+  // 加載 RAG 文獻列表
+  const loadRagDocs = async () => {
+    setLoadingRag(true)
+    try {
+      const data = await getRagDocuments()
+      setRagDocs(data.documents || [])
+    } catch (e) {
+      console.error("無法載入文獻清單:", e)
+    } finally {
+      setLoadingRag(false)
+    }
+  }
+
+  // 當 Tab 切換或 Modal 開啟時載入數據
+  useEffect(() => {
+    if (showToolsModal) {
+      if (toolsActiveTab === 'settings') {
+        loadConfig()
+      } else if (toolsActiveTab === 'rag') {
+        loadRagDocs()
+      }
+    }
+  }, [toolsActiveTab, showToolsModal])
+
+  // 匯出備份
+  const handleDownloadBackup = () => {
+    downloadBackup()
+  }
+
+  // 匯入還原
+  const handleUploadRestore = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (!window.confirm("⚠️ 您確定要還原此備份嗎？\n這會清除目前所有數據，並覆寫為備份檔案中的狀態！此操作無法復原。")) {
+      return
+    }
+    setActionLoading(true)
+    try {
+      await uploadRestore(file)
+      alert("✅ 系統資料還原成功！")
+      // 重置頁面與狀態
+      localStorage.clear()
+      const data = await getConversations()
+      setConversations(data.conversations || [])
+      if (data.conversations?.length > 0) {
+        setSessionId(data.conversations[0].id)
+      }
+      refreshState()
+      setShowToolsModal(false)
+      setActivePage('chat')
+    } catch (e) {
+      alert(`還原失敗：${e.message}`)
+    } finally {
+      setActionLoading(false)
+      e.target.value = '' // 清除 input 值以供下次選擇
+    }
+  }
+
+  // 儲存設定
+  const handleSaveConfig = async (e) => {
+    e.preventDefault()
+    setSavingConfig(true)
+    try {
+      await saveSystemConfig(configForm)
+      alert("✅ 設定儲存成功！已完成熱重載 API 設定。")
+      loadConfig() // 重新加載更新後的屏蔽值
+    } catch (e) {
+      alert(`儲存失敗：${e.message}`)
+    } finally {
+      setSavingConfig(false)
+    }
+  }
+
+  // 刪除單篇論文
+  const handleDeleteDoc = async (paperId, title) => {
+    if (!window.confirm(`⚠️ 您確定要完全刪除論文「${title}」嗎？\n這將會移除此論文摘要、向量 RAG 知識庫及 PDF 文件，但不會影響其他論文。`)) {
+      return
+    }
+    setLoadingRag(true)
+    try {
+      await deleteRagDocument(paperId)
+      alert("✅ 論文已成功刪除！")
+      loadRagDocs() // 重新加載
+      refreshState()
+    } catch (e) {
+      alert(`刪除失敗：${e.message}`)
+    } finally {
+      setLoadingRag(false)
+    }
+  }
+
+  // 重建 RAG 索引
+  const handleRebuildIndex = async () => {
+    if (!window.confirm("⚠️ 您確定要重建所有 RAG 索引嗎？\n系統會重新掃描本地 papers 目錄下的 PDF 檔案並重新進行 AI 格式解讀與索引重建，這可能需要數十秒至數分鐘。")) {
+      return
+    }
+    setActionLoading(true)
+    try {
+      const res = await rebuildRagIndex()
+      alert(`✅ 索引重建完成！成功重新索引 ${res.reindexed} 篇文獻。`)
+      loadRagDocs()
+      refreshState()
+    } catch (e) {
+      alert(`重建失敗：${e.message}`)
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+
   const renderPages = () => {
     if (!sessionId) {
       return (
@@ -493,6 +691,16 @@ export default function App() {
           </div>
           <div className="header-badges">
             <button 
+              className="system-tools-btn"
+              onClick={() => {
+                setShowToolsModal(true);
+                handleRunDiagnostics();
+              }}
+              title="系統工具箱 (重置、匯入示範文獻、檢測)"
+            >
+              🛠️ 系統工具
+            </button>
+            <button 
               className={`stepper-toggle-btn ${showStepper ? 'active' : ''}`}
               onClick={() => setShowStepper(!showStepper)}
               title={showStepper ? "隱藏研究進度" : "顯示研究進度"}
@@ -532,11 +740,11 @@ export default function App() {
                 <div className="step-label">研究定位</div>
                 <div className="step-status-text">{roleForm.researchDirection ? '已設定' : '待定位'}</div>
               </div>
-              
-              <div className={`step-line ${summariesCount >= 2 ? 'completed' : ''}`} />
+
+              <div className={`step-line ${roleForm.researchDirection ? 'completed' : ''}`} />
 
               {/* Step 2 */}
-              <div className={`step-item ${summariesCount >= 2 ? 'completed' : (summariesCount === 1 || roleForm.large) ? 'active' : 'pending'} ${aiRecommendedStep === 2 ? 'recommended' : ''}`} onClick={() => setActivePage('chat')}>
+              <div className={`step-item ${summariesCount >= 1 ? 'completed' : roleForm.researchDirection ? 'active' : 'pending'} ${aiRecommendedStep === 2 ? 'recommended' : ''}`} onClick={() => setActivePage('summary')}>
                 <div className="step-number">
                   📚
                   {aiRecommendedStep === 2 && <span className="recommended-dot" />}
@@ -698,6 +906,450 @@ export default function App() {
             <div className="modal-footer">
               <button className="btn btn-ghost" onClick={() => setShowRoleModal(false)}>取消</button>
               <button id="save-role-btn" className="btn btn-primary" onClick={saveRoleState}>儲存設定</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── 系統工具 Modal ─── */}
+      {showToolsModal && (
+        <div className="modal-backdrop" onClick={() => { if (!actionLoading) setShowToolsModal(false) }}>
+          <div className="modal glass-card fade-in" style={{ maxWidth: '560px' }} onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>🛠️ 系統工具箱</h2>
+              <button className="btn btn-icon" disabled={actionLoading} onClick={() => setShowToolsModal(false)}>✕</button>
+            </div>
+            
+            <div className="tools-modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '20px', minHeight: '380px' }}>
+              
+              {/* Tab 頁籤切換 */}
+              <div className="tools-modal-tabs" style={{ display: 'flex', gap: '8px', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '10px' }}>
+                <button 
+                  type="button"
+                  className={`tab-item ${toolsActiveTab === 'diagnostics' ? 'active' : ''}`}
+                  onClick={() => setToolsActiveTab('diagnostics')}
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: '6px',
+                    border: 'none',
+                    background: toolsActiveTab === 'diagnostics' ? 'rgba(99,102,241,0.15)' : 'transparent',
+                    color: toolsActiveTab === 'diagnostics' ? '#a5b4fc' : 'var(--text-muted)',
+                    cursor: 'pointer',
+                    fontSize: '12px',
+                    fontWeight: '600',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  🔍 診斷與重置
+                </button>
+                <button 
+                  type="button"
+                  className={`tab-item ${toolsActiveTab === 'settings' ? 'active' : ''}`}
+                  onClick={() => setToolsActiveTab('settings')}
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: '6px',
+                    border: 'none',
+                    background: toolsActiveTab === 'settings' ? 'rgba(99,102,241,0.15)' : 'transparent',
+                    color: toolsActiveTab === 'settings' ? '#a5b4fc' : 'var(--text-muted)',
+                    cursor: 'pointer',
+                    fontSize: '12px',
+                    fontWeight: '600',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  ⚙️ 參數與備份設定
+                </button>
+                <button 
+                  type="button"
+                  className={`tab-item ${toolsActiveTab === 'rag' ? 'active' : ''}`}
+                  onClick={() => setToolsActiveTab('rag')}
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: '6px',
+                    border: 'none',
+                    background: toolsActiveTab === 'rag' ? 'rgba(99,102,241,0.15)' : 'transparent',
+                    color: toolsActiveTab === 'rag' ? '#a5b4fc' : 'var(--text-muted)',
+                    cursor: 'pointer',
+                    fontSize: '12px',
+                    fontWeight: '600',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  📚 知識庫文獻管理
+                </button>
+              </div>
+
+              {/* 1. 診斷與重置頁面 */}
+              {toolsActiveTab === 'diagnostics' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                  {/* 診斷區塊 */}
+                  <div className="diagnostics-panel" style={{
+                    background: 'rgba(255,255,255,0.02)',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: '8px',
+                    padding: '16px'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                      <span style={{ fontSize: '13px', fontWeight: '700', color: '#a5b4fc' }}>
+                        🔍 系統狀態自我檢測
+                      </span>
+                      <button 
+                        className="btn btn-ghost" 
+                        style={{ padding: '2px 8px', fontSize: '11px', height: 'auto' }}
+                        onClick={handleRunDiagnostics}
+                        disabled={diagnosing || actionLoading}
+                      >
+                        {diagnosing ? '檢測中...' : '🔄 重新檢測'}
+                      </button>
+                    </div>
+
+                    <div className="diagnostics-list" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      {diagnostics ? (
+                        Object.entries(diagnostics).map(([key, item]) => (
+                          <div key={key} style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px', borderBottom: '1px solid rgba(255,255,255,0.03)', paddingBottom: '8px' }}>
+                            <div style={{ fontSize: '12px' }}>
+                              <strong>{
+                                key === 'gemini_api' ? 'Gemini API 連線' :
+                                key === 'pdf_parser' ? 'PDF 解析器依賴' :
+                                key === 'semantic_scholar' ? '學術資料庫 API' :
+                                '本地磁碟寫入'
+                              }：</strong>
+                              <span style={{ color: 'var(--text-secondary)', display: 'block', fontSize: '11px', marginTop: '2px' }}>
+                                {item.message}
+                              </span>
+                            </div>
+                            <span className={`status-badge status-${item.status}`} style={{
+                              padding: '2px 6px',
+                              borderRadius: '4px',
+                              fontSize: '10px',
+                              fontWeight: '600',
+                              whiteSpace: 'nowrap',
+                              background: item.status === 'success' ? 'rgba(16,185,129,0.15)' : item.status === 'warning' ? 'rgba(245,158,11,0.15)' : 'rgba(239,68,68,0.15)',
+                              color: item.status === 'success' ? '#34d399' : item.status === 'warning' ? '#fbbf24' : '#f87171',
+                              border: `1px solid ${item.status === 'success' ? 'rgba(16,185,129,0.3)' : item.status === 'warning' ? 'rgba(245,158,11,0.3)' : 'rgba(239,68,68,0.3)'}`
+                            }}>
+                              {item.status === 'success' ? '正常' : item.status === 'warning' ? '警告' : '失敗'}
+                            </span>
+                          </div>
+                        ))
+                      ) : (
+                        <div style={{ fontSize: '12px', color: 'var(--text-muted)', textAlign: 'center', padding: '10px 0' }}>
+                          正在執行系統診斷...
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* 操作區塊 */}
+                  <div className="tools-actions-panel" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    {/* 匯入示範數據 */}
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '16px',
+                      background: 'rgba(99,102,241,0.03)',
+                      border: '1px solid rgba(99,102,241,0.15)',
+                      borderRadius: '8px',
+                      padding: '16px'
+                    }}>
+                      <div style={{ flex: 1 }}>
+                        <h4 style={{ margin: 0, fontSize: '13px', color: '#c7d2fe' }}>📚 匯入示範學術論文</h4>
+                        <p style={{ margin: '4px 0 0', fontSize: '11px', color: 'var(--text-muted)', lineHeight: '1.4' }}>
+                          一鍵匯入 2 篇精選示範論文（鈣鈦礦太陽能、CoT 推理），自動設定研究定位，以便立刻測試對比矩陣與圖譜。
+                        </p>
+                      </div>
+                      <button 
+                        className="btn btn-primary" 
+                        onClick={handleImportDemos}
+                        disabled={actionLoading}
+                        style={{ whiteSpace: 'nowrap' }}
+                      >
+                        {actionLoading ? '請稍候...' : '📥 快速匯入'}
+                      </button>
+                    </div>
+
+                    {/* 重置系統 */}
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '16px',
+                      background: 'rgba(239,68,68,0.03)',
+                      border: '1px solid rgba(239,68,68,0.15)',
+                      borderRadius: '8px',
+                      padding: '16px'
+                    }}>
+                      <div style={{ flex: 1 }}>
+                        <h4 style={{ margin: 0, fontSize: '13px', color: '#fca5a5' }}>⚠️ 一鍵初始化系統</h4>
+                        <p style={{ margin: '4px 0 0', fontSize: '11px', color: 'var(--text-muted)', lineHeight: '1.4' }}>
+                          刪除所有對話紀錄、快取的論文摘要、對比矩陣，並清空 RAG 知識庫資料夾。會保留 API Key 設定。
+                        </p>
+                      </div>
+                      <button 
+                        className="btn" 
+                        onClick={handleResetSystem}
+                        disabled={actionLoading}
+                        style={{ whiteSpace: 'nowrap', backgroundColor: 'rgba(239,68,68,0.15)', color: '#f87171', border: '1px solid rgba(239,68,68,0.3)' }}
+                      >
+                        {actionLoading ? '重置中...' : '🧹 系統初始化'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* 2. 參數與備份設定頁面 */}
+              {toolsActiveTab === 'settings' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                  {/* 備份與還原面板 */}
+                  <div style={{
+                    background: 'rgba(255,255,255,0.02)',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: '8px',
+                    padding: '16px'
+                  }}>
+                    <h4 style={{ margin: '0 0 12px 0', fontSize: '13px', color: '#a5b4fc' }}>💾 系統資料備份與還原</h4>
+                    <div style={{ display: 'flex', gap: '12px' }}>
+                      <button 
+                        type="button"
+                        className="btn"
+                        onClick={handleDownloadBackup}
+                        style={{ flex: 1, fontSize: '12px', background: 'rgba(255,255,255,0.05)', color: 'var(--text-primary)', border: '1px solid rgba(255,255,255,0.15)' }}
+                      >
+                        📤 匯出完整備份 (ZIP)
+                      </button>
+                      <label 
+                        className="btn btn-ghost" 
+                        style={{ flex: 1, fontSize: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', margin: 0, border: '1px solid rgba(99,102,241,0.3)' }}
+                      >
+                        📥 匯入備份還原
+                        <input 
+                          type="file" 
+                          accept=".zip" 
+                          onChange={handleUploadRestore} 
+                          style={{ display: 'none' }} 
+                          disabled={actionLoading}
+                        />
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* 環境變數參數表單 */}
+                  <form onSubmit={handleSaveConfig} style={{
+                    background: 'rgba(255,255,255,0.02)',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: '8px',
+                    padding: '16px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '12px'
+                  }}>
+                    <h4 style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#a5b4fc' }}>⚙️ API 金鑰與模型變數設定</h4>
+                    
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <label style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Gemini API 金鑰</label>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <input 
+                          type={showApiKey ? 'text' : 'password'}
+                          value={configForm.GEMINI_API_KEY}
+                          onChange={e => setConfigForm({...configForm, GEMINI_API_KEY: e.target.value})}
+                          placeholder="請輸入 Gemini API Key..."
+                          style={{
+                            flex: 1,
+                            background: 'rgba(0,0,0,0.2)',
+                            border: '1px solid rgba(255,255,255,0.15)',
+                            borderRadius: '4px',
+                            color: 'var(--text-primary)',
+                            padding: '8px',
+                            fontSize: '12px'
+                          }}
+                        />
+                        <button 
+                          type="button"
+                          className="btn"
+                          onClick={() => setShowApiKey(!showApiKey)}
+                          style={{ padding: '0 12px', fontSize: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.15)' }}
+                        >
+                          {showApiKey ? '隱藏' : '顯示'}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <label style={{ fontSize: '11px', color: 'var(--text-muted)' }}>主要語言模型 (GEMINI_MODEL)</label>
+                      <select 
+                        value={configForm.GEMINI_MODEL}
+                        onChange={e => setConfigForm({...configForm, GEMINI_MODEL: e.target.value})}
+                        style={{
+                          background: '#1a1b26',
+                          border: '1px solid rgba(255,255,255,0.15)',
+                          borderRadius: '4px',
+                          color: 'var(--text-primary)',
+                          padding: '8px',
+                          fontSize: '12px',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        <option value="gemini-3.5-flash">gemini-3.5-flash (推薦: 速度最快)</option>
+                        <option value="gemini-1.5-pro">gemini-1.5-pro (推薦: 適合推理)</option>
+                        <option value="gemini-3.1-flash-lite">gemini-3.1-flash-lite</option>
+                        <option value="gemma-4-26b-a4b-it">gemma-4-26b-a4b-it</option>
+                      </select>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <label style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Semantic Scholar API 金鑰 (選填)</label>
+                      <input 
+                        type="password"
+                        value={configForm.SEMANTIC_SCHOLAR_API_KEY}
+                        onChange={e => setConfigForm({...configForm, SEMANTIC_SCHOLAR_API_KEY: e.target.value})}
+                        placeholder="無 (留空將使用免費配額與共用限制)..."
+                        style={{
+                          background: 'rgba(0,0,0,0.2)',
+                          border: '1px solid rgba(255,255,255,0.15)',
+                          borderRadius: '4px',
+                          color: 'var(--text-primary)',
+                          padding: '8px',
+                          fontSize: '12px'
+                        }}
+                      />
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <label style={{ fontSize: '11px', color: 'var(--text-muted)' }}>本地知識庫資料夾 (PAPERS_DB_PATH)</label>
+                      <input 
+                        type="text"
+                        value={configForm.PAPERS_DB_PATH}
+                        readOnly
+                        style={{
+                          background: 'rgba(0,0,0,0.4)',
+                          border: '1px solid rgba(255,255,255,0.08)',
+                          borderRadius: '4px',
+                          color: 'var(--text-muted)',
+                          padding: '8px',
+                          fontSize: '12px'
+                        }}
+                      />
+                      <span style={{ fontSize: '9px', color: 'var(--text-muted)' }}>※ 為保護系統路徑安全，此參數設定為唯讀，固定於專案的 data/papers/ 目錄。</span>
+                    </div>
+
+                    <button 
+                      type="submit" 
+                      className="btn btn-primary"
+                      disabled={savingConfig}
+                      style={{ marginTop: '8px', width: '100%' }}
+                    >
+                      {savingConfig ? '儲存中...' : '💾 儲存並熱重載設定'}
+                    </button>
+                  </form>
+                </div>
+              )}
+
+              {/* 3. 知識庫文獻管理頁面 */}
+              {toolsActiveTab === 'rag' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                  {/* 文獻表格 */}
+                  <div style={{
+                    background: 'rgba(255,255,255,0.02)',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: '8px',
+                    padding: '16px',
+                    maxHeight: '300px',
+                    overflowY: 'auto'
+                  }}>
+                    <h4 style={{ margin: '0 0 12px 0', fontSize: '13px', color: '#a5b4fc', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span>📚 已上傳文獻清單</span>
+                      <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 'normal' }}>總計: {ragDocs.length} 篇</span>
+                    </h4>
+
+                    {loadingRag ? (
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '30px 0', gap: '8px' }}>
+                        <div className="spinner" style={{ width: '16px', height: '16px', borderWidth: '2px' }} />
+                        <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>讀取資料中...</span>
+                      </div>
+                    ) : ragDocs.length > 0 ? (
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px', textAlign: 'left' }}>
+                        <thead>
+                          <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)', color: 'var(--text-muted)' }}>
+                            <th style={{ padding: '8px 4px' }}>標題</th>
+                            <th style={{ padding: '8px 4px', width: '60px' }}>年份</th>
+                            <th style={{ padding: '8px 4px', width: '90px' }}>檔案大小</th>
+                            <th style={{ padding: '8px 4px', width: '60px', textAlign: 'center' }}>操作</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {ragDocs.map((doc, idx) => (
+                            <tr key={doc.paper_id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                              <td style={{ padding: '8px 4px', maxWidth: '220px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={doc.title}>
+                                📄 {doc.title}
+                              </td>
+                              <td style={{ padding: '8px 4px' }}>{doc.year || '未知'}</td>
+                              <td style={{ padding: '8px 4px', color: 'var(--text-secondary)' }}>{doc.size}</td>
+                              <td style={{ padding: '8px 4px', textAlign: 'center' }}>
+                                <button 
+                                  type="button"
+                                  className="btn"
+                                  onClick={() => handleDeleteDoc(doc.paper_id, doc.title)}
+                                  style={{
+                                    padding: '2px 6px',
+                                    fontSize: '10px',
+                                    backgroundColor: 'rgba(239,68,68,0.1)',
+                                    color: '#f87171',
+                                    border: '1px solid rgba(239,68,68,0.2)',
+                                    borderRadius: '4px',
+                                    cursor: 'pointer'
+                                  }}
+                                >
+                                  🗑️ 刪除
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    ) : (
+                      <div style={{ textAlign: 'center', padding: '30px 0', color: 'var(--text-muted)', fontSize: '12px' }}>
+                        目前資料庫中無任何論文文獻。您可以使用「快速匯入」或「📎 上傳論文」來添加。
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 全域索引重建 */}
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '16px',
+                    background: 'rgba(245,158,11,0.03)',
+                    border: '1px solid rgba(245,158,11,0.15)',
+                    borderRadius: '8px',
+                    padding: '16px'
+                  }}>
+                    <div style={{ flex: 1 }}>
+                      <h4 style={{ margin: 0, fontSize: '13px', color: '#fde047' }}>🔄 重建 RAG 向量索引 (RAG Rebuilder)</h4>
+                      <p style={{ margin: '4px 0 0', fontSize: '11px', color: 'var(--text-muted)', lineHeight: '1.4' }}>
+                        如果資料庫索引發生混亂、或是更新了 PDF 解析套件，此操作會重新將本地 `data/papers` 下所有 PDF 解析並重構向量庫檢索。
+                      </p>
+                    </div>
+                    <button 
+                      type="button"
+                      className="btn" 
+                      onClick={handleRebuildIndex}
+                      disabled={actionLoading}
+                      style={{ whiteSpace: 'nowrap', backgroundColor: 'rgba(245,158,11,0.15)', color: '#fef08a', border: '1px solid rgba(245,158,11,0.3)' }}
+                    >
+                      {actionLoading ? '重建中...' : '🔄 索引重構'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+            </div>
+
+            <div className="modal-footer">
+              <button className="btn btn-ghost" disabled={actionLoading} onClick={() => setShowToolsModal(false)}>關閉</button>
             </div>
           </div>
         </div>

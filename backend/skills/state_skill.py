@@ -1,6 +1,6 @@
 """
 AI 研究助理 Agent — 角色狀態技能
-負責管理使用者的研究方向階層（大方向 / 中方向 / 小方向）
+負責管理使用者的研究方向範疇
 """
 from typing import Optional
 from pydantic import BaseModel

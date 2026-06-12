@@ -7,7 +7,7 @@ logger = logging.getLogger("model_fallback")
 
 class FallbackGenerativeModel:
     """
-    模型包裝器：當主要模型（如 gemini-1.5-flash）配額耗盡 (429/ResourceExhausted) 時，
+    模型包裝器：當主要模型（如 gemini-3.5-flash）配額耗盡 (429/ResourceExhausted) 時，
     自動無感切換至備援模型（如 gemma-4-26b-a4b-it）。
     """
     def __init__(self, model_name, **kwargs):

@@ -126,3 +126,79 @@ export async function getGraph(sessionId) {
   return res.json()
 }
 
+export async function resetSystem() {
+  const res = await fetch(`${BASE_URL}/system/reset`, { method: 'POST' })
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+export async function importDemos(sessionId) {
+  const res = await fetch(`${BASE_URL}/system/import-demos`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ session_id: sessionId })
+  })
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+export async function diagnoseSystem() {
+  const res = await fetch(`${BASE_URL}/system/diagnose`)
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+export function downloadBackup() {
+  window.open(`${BASE_URL}/system/backup`, '_blank')
+}
+
+export async function uploadRestore(file) {
+  const form = new FormData()
+  form.append('file', file)
+  const res = await fetch(`${BASE_URL}/system/restore`, {
+    method: 'POST',
+    body: form,
+  })
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+export async function getSystemConfig() {
+  const res = await fetch(`${BASE_URL}/system/config`)
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+export async function saveSystemConfig(config) {
+  const res = await fetch(`${BASE_URL}/system/config`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(config),
+  })
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+export async function getRagDocuments() {
+  const res = await fetch(`${BASE_URL}/system/rag/documents`)
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+export async function deleteRagDocument(paperId) {
+  const res = await fetch(`${BASE_URL}/system/rag/documents/${paperId}`, {
+    method: 'DELETE',
+  })
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+export async function rebuildRagIndex() {
+  const res = await fetch(`${BASE_URL}/system/rag/rebuild`, {
+    method: 'POST',
+  })
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+

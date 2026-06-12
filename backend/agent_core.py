@@ -7,6 +7,7 @@ import asyncio
 import json
 import re
 import google.generativeai as genai
+from skills.system_skill import SystemSkill
 
 from typing import Optional
 from skills.state_skill import StateSkill, RoleState
@@ -110,6 +111,7 @@ class AgentCore:
         self.analysis_skill = AnalysisSkill()
         self.matrix_skill = MatrixSkill()
         self.direction_skill = DirectionSkill()
+        self.system_skill = SystemSkill()
         self.rag_store = RAGStore(db_path=os.getenv("PAPERS_DB_PATH", "./data/papers"))
 
         # 儲存各 session 的摘要快取
@@ -502,15 +504,26 @@ class AgentCore:
         full_context = role_state.get_full_hierarchy_desc()
         
         # 2. 自動提取與更新研究方向
+        # 過濾條件：字數太短的問候語（< 8 字）或純符號，不觸發 LLM 方向推導以節省 API 呼叫
+        _GREETING_PATTERNS = {"你好", "hello", "hi", "嗨", "哈囉", "再見", "謝謝", "感謝", "好的", "ok", "okay", "yes", "no"}
+        _msg_stripped = message.strip()
+        _is_trivial = (
+            len(_msg_stripped) < 8
+            or _msg_stripped.lower() in _GREETING_PATTERNS
+            or all(not c.isalnum() for c in _msg_stripped)
+        )
         try:
             has_summaries = bool(self.get_summaries(session_id))
             if not has_summaries:
-                # 尚未進展到論文摘要，則在所有對話中自動推導並更新方向
-                await self._infer_and_update_direction(session_id, "", [], message)
-                # 重新取得更新後的 context
-                role_state = self.state_skill.get_state(session_id)
-                role_context = role_state.get_search_context()
-                full_context = role_state.get_full_hierarchy_desc()
+                # 尚未進展到論文摘要：僅對有實質內容的訊息推導研究方向
+                if not _is_trivial:
+                    await self._infer_and_update_direction(session_id, "", [], message)
+                    # 重新取得更新後的 context
+                    role_state = self.state_skill.get_state(session_id)
+                    role_context = role_state.get_search_context()
+                    full_context = role_state.get_full_hierarchy_desc()
+                else:
+                    logger.debug(f"Skipping direction inference for trivial/short message: '{_msg_stripped[:20]}'")
             else:
                 if intent == "set_direction":
                     extracted = await self._extract_directions_from_message(message)
@@ -533,15 +546,57 @@ class AgentCore:
             translated_context = await self._translate_query_to_english(role_context) if role_context else ""
             papers = await self.search_skill.search(translated_query, context=translated_context)
             import uuid
-            summary_tasks = [self.analysis_skill.summarize(paper_id=p.paper_id or str(uuid.uuid4())[:8], title=p.title, authors=p.authors, year=p.year, content=p.abstract or "無摘要") for p in papers]
-            if summary_tasks:
+            new_count = 0
+            duplicate_count = 0
+            failed_count = 0
+            if papers:
                 try:
+                    # Semaphore 限制並發數，避免同時送出太多請求觸發 API 限流
+                    sem = asyncio.Semaphore(3)
+
+                    async def _safe_summarize(p):
+                        async with sem:
+                            return await self.analysis_skill.summarize(
+                                paper_id=p.paper_id or str(uuid.uuid4())[:8],
+                                title=p.title,
+                                authors=p.authors,
+                                year=p.year,
+                                content=p.abstract or "無摘要"
+                            )
+
+                    summary_tasks = [_safe_summarize(p) for p in papers]
                     summaries = await asyncio.gather(*summary_tasks, return_exceptions=True)
                     if session_id not in self._summaries:
                         self._summaries[session_id] = []
-                    for s in summaries:
-                        if not isinstance(s, Exception) and not any(x.title.lower() == s.title.lower() for x in self._summaries[session_id]):
+                    for p, s in zip(papers, summaries):
+                        if isinstance(s, Exception):
+                            failed_count += 1
+                            logger.warning(f"Summarize failed for '{p.title}': {s}")
+                        elif any(x.title.lower() == s.title.lower() for x in self._summaries[session_id]):
+                            duplicate_count += 1
+                        else:
                             self._summaries[session_id].append(s)
+                            new_count += 1
+                            # 同步將論文摘要文字寫入 RAG store（供後續矩陣、方向分析使用）
+                            try:
+                                rag_content = f"# {p.title}\n\n"
+                                if p.authors:
+                                    rag_content += f"**作者：** {', '.join(p.authors)}\n\n"
+                                if p.year:
+                                    rag_content += f"**年份：** {p.year}\n\n"
+                                if p.abstract:
+                                    rag_content += f"**摘要：**\n{p.abstract}\n\n"
+                                rag_content += f"**研究目的：** {s.research_goal}\n\n"
+                                rag_content += f"**主要發現：** {s.main_findings}\n\n"
+                                rag_content += f"**研究限制：** {s.limitations}\n"
+                                paper_key = p.paper_id or s.paper_id
+                                self.rag_store.add_document(
+                                    paper_key,
+                                    rag_content,
+                                    {"title": p.title, "year": p.year, "source": "search"}
+                                )
+                            except Exception as rag_e:
+                                logger.warning(f"Failed to write search paper to RAG: {rag_e}")
                     self._save_session_data()
                     
                     valid_summaries = [s for s in summaries if not isinstance(s, Exception)]
@@ -554,7 +609,7 @@ class AgentCore:
                         )
                 except Exception as e:
                     logger.warning(f"Auto-summarizing failed: {e}")
-            result_text = f"已找到 {len(papers)} 篇相關論文：\n\n"
+            result_text = f"🔍 已找到 **{len(papers)}** 篇相關論文：\n\n"
             for p in papers:
                 authors = "、".join(p.authors[:3]) + ("..." if len(p.authors) > 3 else "")
                 result_text += f"📄 **{p.title}**\n"
@@ -562,7 +617,19 @@ class AgentCore:
                 if p.abstract:
                     result_text += f"   - 摘要：{p.abstract[:150]}...\n"
                 result_text += "\n"
-            result_text += "*(以上搜尋到的論文已自動分析並存入「論文摘要」記錄頁中，您可以切換分頁查看)*"
+            
+            # 精確說明存入摘要的情況
+            total_summaries = len(self._summaries.get(session_id, []))
+            note_parts = []
+            if new_count > 0:
+                note_parts.append(f"✅ 新增 **{new_count}** 篇至摘要（目前共 {total_summaries} 篇）")
+            else:
+                note_parts.append(f"ℹ️ 本次結果均已存在於摘要中（目前共 {total_summaries} 篇）")
+            if duplicate_count > 0:
+                note_parts.append(f"{duplicate_count} 篇重複略過")
+            if failed_count > 0:
+                note_parts.append(f"{failed_count} 篇分析失敗")
+            result_text += "*" + "，".join(note_parts) + "，可切換「論文摘要」分頁查看。*"
             
             suggestions = await self._generate_suggestions("search", result_text, role_context, message)
             return {"type": "search", "content": result_text, "papers": [p.model_dump() for p in papers], "suggestions": suggestions}
@@ -685,56 +752,32 @@ class AgentCore:
                     suggestions = await self._generate_suggestions("analyze", result_text, role_context, message)
                     return {"type": "analyze", "content": result_text, "suggestions": suggestions}
                 else:
-                    # 備用方案：如果無法從 Semantic Scholar 取得學術資料，嘗試直接爬取網頁內容進行摘要
+                    # 備用方案：如果無法從 Semantic Scholar 取得學術資料，
+                    # 僅允許已知學術域名（arxiv.org, pubmed, doi.org 等），非學術網站一律拒絕
+                    # 防止非學術網頁（新聞、部落格等）混入論文摘要庫
+                    ACADEMIC_DOMAINS = (
+                        "arxiv.org", "pubmed.ncbi.nlm.nih.gov", "doi.org",
+                        "ieeexplore.ieee.org", "dl.acm.org", "link.springer.com",
+                        "www.nature.com", "www.science.org", "www.sciencedirect.com",
+                        "academic.oup.com", "journals.plos.org", "ncbi.nlm.nih.gov",
+                        "biorxiv.org", "medrxiv.org", "ssrn.com", "researchgate.net",
+                        "scholar.google.com", "semanticscholar.org"
+                    )
                     if target_query.startswith("http://") or target_query.startswith("https://"):
-                        try:
-                            logger.info(f"Semantic Scholar lookup failed. Crawling URL directly: {target_query}")
-                            import httpx
-                            # 爬取網頁內容
-                            async with httpx.AsyncClient(timeout=15, follow_redirects=True) as client:
-                                resp = await client.get(target_query, headers={
-                                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-                                })
-                                if resp.status_code == 200:
-                                    html_content = resp.text
-                                    # 簡單清理 HTML 標籤
-                                    import re
-                                    text_content = re.sub(r'<script.*?</script>', '', html_content, flags=re.DOTALL)
-                                    text_content = re.sub(r'<style.*?</style>', '', text_content, flags=re.DOTALL)
-                                    text_content = re.sub(r'<.*?>', '', text_content, flags=re.DOTALL)
-                                    text_content = re.sub(r'\s+', ' ', text_content).strip()
-                                    
-                                    # 提取網頁標題
-                                    title_match = re.search(r'<title>(.*?)</title>', html_content, re.IGNORECASE)
-                                    page_title = title_match.group(1).strip() if title_match else "網路文章"
-                                    
-                                    # 生成摘要
-                                    import uuid
-                                    paper_id = str(uuid.uuid4())[:8]
-                                    summary = await self.analysis_skill.summarize(
-                                        paper_id=paper_id,
-                                        title=page_title,
-                                        authors=["網路作者"],
-                                        year=None,
-                                        content=text_content[:8000],
-                                    )
-                                    
-                                    if session_id not in self._summaries:
-                                        self._summaries[session_id] = []
-                                    if not any(x.title.lower() == summary.title.lower() for x in self._summaries[session_id]):
-                                        self._summaries[session_id].append(summary)
-                                    self._save_session_data()
-                                    
-                                    result_text = f"✅ 已成功擷取並分析網頁文章：**{summary.title}**\n\n"
-                                    result_text += f"**研究目的：** {summary.research_goal}\n\n"
-                                    result_text += f"**主要發現：** {summary.main_findings}\n\n"
-                                    result_text += f"**研究限制：** {summary.limitations}\n\n"
-                                    result_text += "*(此文章結構化摘要已自動儲存至「論文摘要」分頁中)*"
-                                    
-                                    suggestions = await self._generate_suggestions("analyze", result_text, role_context, message)
-                                    return {"type": "analyze", "content": result_text, "suggestions": suggestions}
-                        except Exception as ce:
-                            logger.warning(f"Failed to crawl URL fallback '{target_query}': {ce}")
+                        from urllib.parse import urlparse
+                        parsed_domain = urlparse(target_query).netloc.lower().lstrip("www.")
+                        is_academic = any(parsed_domain == d or parsed_domain.endswith("." + d) for d in ACADEMIC_DOMAINS)
+                        if not is_academic:
+                            logger.warning(f"Non-academic URL blocked from crawling: {target_query} (domain: {parsed_domain})")
+                            # 不爬取非學術網域，直接引導使用者上傳 PDF
+                            error_desc = (
+                                f"⚠️ 無法讀取非學術來源的網址。為確保知識庫的學術品質，"
+                                f"本系統僅支援學術資料庫網址（如 arxiv.org、doi.org、pubmed 等）。\n\n"
+                                f"**建議您：**\n"
+                                f"1. 使用 **「📎 上傳論文」** 功能上傳 PDF 檔案。\n"
+                                f"2. 直接輸入關鍵字讓我為您搜尋相關學術文獻。"
+                            )
+                            return {"type": "error", "content": error_desc, "suggestions": ["直接搜尋相關文獻", "如何上傳 PDF 論文"]}
                     
                     logger.warning(f"Could not fetch paper details by URL/DOI directly. Returning error message.")
                     if target_query.startswith("http://") or target_query.startswith("https://"):
@@ -911,6 +954,16 @@ class AgentCore:
                             if not any(x.title.lower() == summary.title.lower() for x in self._summaries[session_id]):
                                 self._summaries[session_id].append(summary)
                         self._save_session_data()
+                    
+                    # ── 重要：set_research_direction 處理完畢，立即回傳結果 ──
+                    # 不加 return 會導致控制流繼續執行下方重複的搜尋邏輯（已修復）
+                    suggestions = await self._generate_suggestions("set_direction", result_text, role_context, message)
+                    return {
+                        "type": "analyze",
+                        "content": result_text,
+                        "papers": [p.model_dump() for p in papers],
+                        "suggestions": suggestions
+                    }
                 role_context = role_state.get_search_context()
                 full_context = role_state.get_full_hierarchy_desc()
                 
@@ -1024,6 +1077,11 @@ class AgentCore:
             raise RuntimeError(f"PDF 檔案轉換 Markdown 失敗：{str(e)}")
 
         try:
+            # 複製 PDF 到 data/papers 目錄下備份
+            import shutil
+            dest_pdf = self.rag_store.db_path / f"{paper_id}.pdf"
+            shutil.copy(file_path, dest_pdf)
+
             # 2. 存入 RAG (預填)
             self.rag_store.add_document(paper_id, content, {"title": title or "未命名", "year": year})
 
@@ -1083,7 +1141,16 @@ class AgentCore:
             raise RuntimeError(f"論文分析/摘要生成失敗：{str(e)}")
 
     def get_summaries(self, session_id: str) -> list[dict]:
-        # 回傳系統中所有 session 的論文摘要（去重且依年份排序）
+        """回傳指定 session 的論文摘要。若無指定 session 或 session 無摘要，
+        則回傳所有 session 的去重合併結果（供工具箱等全域顯示使用）。"""
+        # 優先回傳指定 session 的摘要
+        if session_id and session_id in self._summaries and self._summaries[session_id]:
+            sums = self._summaries[session_id]
+            result = [s.model_dump() for s in sums]
+            result.sort(key=lambda x: x.get("year") or 0, reverse=True)
+            return result
+        
+        # 若無指定 session，回傳所有 session 的去重合併（用於工具箱等全域場景）
         all_sums = []
         seen_titles = set()
         for sums in self._summaries.values():
@@ -1151,3 +1218,170 @@ class AgentCore:
         self._chat_sessions[session_id] = gemini_history[-20:]
         
         self._save_session_data()
+
+    def reset_system_data(self) -> dict:
+        """重置系統所有資料，刪除快取與實體檔案"""
+        # 1. 清空記憶體快取
+        self._summaries.clear()
+        self._matrix_cache.clear()
+        self._direction_cache.clear()
+        self._chat_sessions.clear()
+        self._conversations.clear()
+        self._chat_history.clear()
+        self.state_skill._states.clear()
+
+        # 2. 刪除本地 papers 目錄下的檔案
+        from pathlib import Path
+        papers_dir = Path("./data/papers")
+        if papers_dir.exists():
+            for f in papers_dir.glob("*"):
+                try:
+                    if f.is_file():
+                        f.unlink()
+                except Exception as e:
+                    logger.warning(f"Failed to delete RAG file {f}: {e}")
+
+        # 3. 刪除或重寫 session_data.json
+        session_file = Path("./data/session_data.json")
+        if session_file.exists():
+            try:
+                session_file.unlink()
+            except Exception as e:
+                logger.warning(f"Failed to delete session file: {e}")
+
+        # 4. 重建一個預設的對話
+        import uuid
+        default_id = str(uuid.uuid4())
+        self._conversations = [{"id": default_id, "label": "研究對話 1", "active": True}]
+        self._chat_history[default_id] = [
+            {
+                "id": 1,
+                "role": "assistant",
+                "content": "您好！我是 AI 研究助理 🔬\n\n您可以：\n- 輸入關鍵字搜尋論文（例：perovskite solar cell）\n- 上傳 PDF 論文進行 analysis\n- 輸入「生成比較矩陣」整合已分析的論文\n- 輸入「分析研究方向」獲取可行研究建議\n\n請問您想如何開始？",
+                "type": "chat",
+            }
+        ]
+        self._chat_sessions[default_id] = []
+        self._save_session_data()
+
+        return {"status": "ok", "session_id": default_id}
+
+    async def import_demo_papers(self, session_id: str) -> dict:
+        """匯入預設示範論文"""
+        demos = self.system_skill.get_demo_papers()
+        
+        if session_id not in self._summaries:
+            self._summaries[session_id] = []
+
+        imported_count = 0
+        for p in demos:
+            # 檢查是否已存在同名論文，若無則匯入
+            if any(x.title.lower() == p["title"].lower() for x in self._summaries[session_id]):
+                continue
+
+            paper_id = p["paper_id"]
+            title = p["title"]
+            authors = p["authors"]
+            year = p["year"]
+            content = p["content"]
+
+            # 1. 寫入 RAG
+            try:
+                self.rag_store.add_document(paper_id, content, {"title": title, "year": year})
+            except Exception as ree:
+                logger.warning(f"Failed to add demo paper {title} to RAG: {ree}")
+
+            # 2. 建立 Pydantic PaperSummary
+            summary = PaperSummary(
+                paper_id=paper_id,
+                title=title,
+                authors=authors,
+                year=year,
+                research_goal=p["research_goal"],
+                methodology=p["methodology"],
+                main_findings=p["main_findings"],
+                limitations=p["limitations"],
+                keywords=p["keywords"]
+            )
+            self._summaries[session_id].append(summary)
+            imported_count += 1
+
+        if imported_count > 0:
+            # 自動從第一篇匯入的論文推導設定研究方向！
+            first_demo = demos[0]
+            await self._infer_and_update_direction(
+                session_id,
+                first_demo["title"],
+                first_demo["keywords"],
+                first_demo["research_goal"] + " " + first_demo["main_findings"]
+            )
+            # 清除當前 session 的矩陣與方向快取以促使重新計算
+            if session_id in self._matrix_cache:
+                del self._matrix_cache[session_id]
+            if session_id in self._direction_cache:
+                del self._direction_cache[session_id]
+            self._save_session_data()
+
+        return {"status": "ok", "imported": imported_count}
+
+    def reload_config(self):
+        """重新加載 API Key 與模型，達成當前 runtime 熱重載"""
+        import os
+        import google.generativeai as genai
+        from tools.model_helper import FallbackGenerativeModel
+
+        api_key = os.getenv("GEMINI_API_KEY")
+        genai.configure(api_key=api_key)
+
+        # 重新初始化模型
+        self.MODEL_NAME = os.getenv("GEMINI_MODEL", "gemma-4-26b-a4b-it")
+        self._chat_model = FallbackGenerativeModel(
+            self.MODEL_NAME,
+            tools=[search_academic_papers, generate_comparison_matrix, analyze_research_direction, set_research_direction]
+        )
+        self._intent_model = FallbackGenerativeModel(
+            self.MODEL_NAME,
+            generation_config=genai.GenerationConfig(
+                temperature=0.1,
+                max_output_tokens=128,
+                response_mime_type="application/json"
+            ),
+        )
+        logger.info(f"Agent Core configurations hot-reloaded successfully. Model: {self.MODEL_NAME}")
+
+    def delete_paper(self, paper_id: str) -> dict:
+        """從系統中完全刪除某篇特定論文 (包括快取與 RAG 檔案)"""
+        # 1. 從所有 session 的 summaries 列表中移除
+        deleted_title = None
+        for sid, sums in list(self._summaries.items()):
+            new_sums = []
+            for s in sums:
+                if s.paper_id == paper_id:
+                    deleted_title = s.title
+                else:
+                    new_sums.append(s)
+            self._summaries[sid] = new_sums
+
+        # 2. 刪除 RAG 檔案 (包含 md, json, pdf)
+        if self.rag_store:
+            md_file = self.rag_store.db_path / f"{paper_id}.md"
+            json_file = self.rag_store.db_path / f"{paper_id}.json"
+            pdf_file = self.rag_store.db_path / f"{paper_id}.pdf"
+            try:
+                if md_file.exists():
+                    md_file.unlink()
+                if json_file.exists():
+                    json_file.unlink()
+                if pdf_file.exists():
+                    pdf_file.unlink()
+            except Exception as e:
+                logger.warning(f"Failed to delete RAG files for {paper_id}: {e}")
+
+        # 3. 清空所有 session 的矩陣與研究方向快取，逼迫系統重新計算
+        self._matrix_cache.clear()
+        self._direction_cache.clear()
+
+        # 4. 存檔
+        self._save_session_data()
+        return {"status": "ok", "deleted_paper_id": paper_id, "title": deleted_title}
+

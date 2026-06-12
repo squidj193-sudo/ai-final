@@ -72,6 +72,38 @@ export default function MatrixPage({ sessionId }) {
     a.click()
   }
 
+  const exportCsv = () => {
+    const lines = matrix.split(/\r?\n/)
+    const csvRows = []
+    
+    for (const line of lines) {
+      const trimmed = line.trim()
+      if (trimmed.startsWith('|') && trimmed.endsWith('|')) {
+        // Skip separator line (e.g. |---|---| or | :--- |)
+        if (trimmed.includes('---')) {
+          continue
+        }
+        const cells = trimmed.split('|').slice(1, -1).map(cell => cell.trim())
+        const csvCells = cells.map(cell => {
+          let escaped = cell.replace(/"/g, '""')
+          if (escaped.includes(',') || escaped.includes('\n') || escaped.includes('\r') || escaped.includes('"')) {
+            escaped = `"${escaped}"`
+          }
+          return escaped
+        })
+        csvRows.push(csvCells.join(','))
+      }
+    }
+    
+    // Add UTF-8 BOM for Excel Chinese compatibility
+    const csvContent = "\uFEFF" + csvRows.join('\r\n')
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = 'literature-matrix.csv'
+    a.click()
+  }
+
   return (
     <div className="matrix-page">
       <div className="matrix-header">
@@ -84,9 +116,14 @@ export default function MatrixPage({ sessionId }) {
             {loading ? <><span className="spinner" /> 生成中...</> : '⚡ 生成矩陣'}
           </button>
           {generated && (
-            <button id="export-matrix-btn" className="btn btn-ghost" onClick={exportMd}>
-              📥 匯出 Markdown
-            </button>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button id="export-matrix-btn" className="btn btn-ghost" onClick={exportMd}>
+                📥 匯出 Markdown
+              </button>
+              <button id="export-matrix-csv-btn" className="btn btn-ghost" onClick={exportCsv}>
+                📥 匯出 CSV
+              </button>
+            </div>
           )}
         </div>
       </div>

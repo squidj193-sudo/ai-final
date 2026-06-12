@@ -62,13 +62,38 @@ class SearchSkill:
         :param limit: 回傳論文數量上限
         :param year_range: 年份範圍，例如 "2020-2024"
         """
-        # 去除重複的關鍵字
-        query_words = query.split()
-        context_words = context.split() if context else []
+        # 清理並重組查詢：去除 > 等特殊字元，優先以 query 為核心，過濾高頻無意義學術字眼防止發散
+        def clean_and_filter(text: str) -> list[str]:
+            if not text:
+                return []
+            cleaned = text.replace(">", " ").replace("  ", " ")
+            words = cleaned.split()
+            stop_words = {
+                "and", "or", "of", "in", "on", "at", "for", "with", "a", "an", "the",
+                "analytics", "techniques", "models", "prediction", "predictive", 
+                "methods", "framework", "analysis", "study", "approach", "system",
+                "technology", "information", "science", "engineering", "research",
+                "artificial", "intelligence", "ai"
+            }
+            return [w for w in words if w.lower() not in stop_words]
+
+        query_cleaned = clean_and_filter(query)
+        context_cleaned = clean_and_filter(context) if context else []
+        
         combined_words = []
-        for word in context_words + query_words:
-            if word not in combined_words:
+        for word in query_cleaned:
+            if word.lower() not in [w.lower() for w in combined_words]:
                 combined_words.append(word)
+                
+        for word in context_cleaned:
+            if word.lower() not in [w.lower() for w in combined_words]:
+                # 控制長度在 6 個字以內，保障精確度
+                if len(combined_words) < 6:
+                    combined_words.append(word)
+                    
+        if not combined_words:
+            combined_words = [w for w in query.split() if w != ">"]
+            
         full_query = " ".join(combined_words)
         
         # 使用字串作為 JSON 快取的鍵

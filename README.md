@@ -1,6 +1,6 @@
 # 🔬 AI 研究助理 Agent
 
-一套以 **Gemma 4 26B (gemma-4-26b-a4b-it)** 為核心的學術研究輔助系統，協助研究人員快速完成文獻探索、摘要生成、比較矩陣建立與研究方向分析。
+一套以 **Gemini 3.5 Flash / Gemma 4 26B** 為核心的學術研究輔助系統，協助研究人員快速完成文獻探索、摘要生成、比較矩陣建立、論文圖譜關聯與研究方向分析。
 
 ## 🏗️ 專案結構
 
@@ -14,8 +14,10 @@ ai-final/
 │   │   ├── search_skill.py     # 論文搜尋
 │   │   ├── analysis_skill.py   # 文獻分析
 │   │   ├── matrix_skill.py     # 文獻矩陣
+│   │   ├── graph_skill.py      # 論文圖譜分析
 │   │   └── direction_skill.py  # 研究方向分析
 │   ├── tools/
+│   │   ├── model_helper.py     # Gemini/Gemma 雙備援切換包裝器
 │   │   └── rag.py          # RAG（MarkItDown + 本地 Markdown 檢索）
 │   ├── requirements.txt
 │   └── .env.example
@@ -25,6 +27,7 @@ ai-final/
 │   │   │   ├── ChatPage.jsx        # 對話搜尋頁
 │   │   │   ├── SummaryPage.jsx     # 論文摘要記錄頁
 │   │   │   ├── MatrixPage.jsx      # 文獻比較矩陣頁
+│   │   │   ├── GraphPage.jsx       # 論文知識圖譜頁
 │   │   │   └── DirectionPage.jsx   # 研究方向建議頁
 │   │   ├── App.jsx         # 主應用佈局（側邊欄 + 導覽）
 │   │   ├── api.js          # API 工具函式
@@ -32,10 +35,13 @@ ai-final/
 │   ├── index.html
 │   ├── package.json
 │   └── vite.config.js
-├── PRD.md
-├── ARCHITECTURE.md
-├── MODELS.md
-└── IMPLEMENTATION.md
+├── 架構/
+│   ├── PRD.md              # 產品需求文件
+│   ├── ARCHITECTURE.md     # 系統架構說明
+│   ├── MODELS.md           # 模型策略
+│   ├── KNOWLEDGE_GRAPH.md  # 知識圖譜說明
+│   └── IMPLEMENTATION.md   # 技術實作路線圖
+└── README.md
 ```
 
 ## 🚀 快速開始
@@ -77,21 +83,26 @@ npm run dev
 | 💬 **對話搜尋** | 輸入關鍵字搜尋學術論文，或上傳 PDF 進行解析 |
 | 📋 **論文摘要** | 查看所有已分析論文的結構化摘要（目的/方法/發現/限制）|
 | 📊 **比較矩陣** | 自動生成多篇論文的比較表格與研究缺口分析 |
-| 🧭 **研究方向** | 根據矩陣識別研究缺口，提出 3-5 個可行研究建議 |
+| 🕸️ **論文圖譜** | 基於語意相似度與 PageRank 影響力分析動態建立互動式圖譜 |
+| 🧭 **研究方向** | 根據矩陣與圖譜指標識別研究缺口，提出 3-5 個可行研究建議 |
 
-## 🤖 模型
+## 🤖 模型策略
 
-所有 AI 推理均由 **Gemma 4 26B (gemma-4-26b-a4b-it)** 驅動。請確保在 `.env` 中正確設定 `GEMINI_API_KEY`。
+系統採用雙模型備援策略：
+- **主要模型**：**Gemini 3.5 Flash (gemini-3.5-flash)** 驅動，提供極快且精準的意圖分類、工具調用與對話處理。
+- **備援模型**：當 API 流量超限 (429 Rate Limit) 時，自動無感切換至 **Gemma 4 26B (gemma-4-26b-a4b-it)** 以確保系統的高可用性。
+
+請確保在 `backend/.env` 中正確設定 `GEMINI_API_KEY`。
 
 ## 📚 文件
 
-- [PRD.md](file:///c:/Users/User/Downloads/1/ai-final/架構/PRD.md) — 產品需求文件
-- [ARCHITECTURE.md](file:///c:/Users/User/Downloads/1/ai-final/架構/ARCHITECTURE.md) — 系統架構說明
-- [MODELS.md](file:///c:/Users/User/Downloads/1/ai-final/架構/MODELS.md) — 模型策略
-- [IMPLEMENTATION.md](file:///c:/Users/User/Downloads/1/ai-final/架構/IMPLEMENTATION.md) — 技術實作路線圖
-- [KNOWLEDGE_GRAPH.md](file:///c:/Users/User/Downloads/1/ai-final/架構/KNOWLEDGE_GRAPH.md) — 知識圖譜說明
-- [DEVELOPER_AGENT_GUIDE.md](file:///c:/Users/User/Downloads/1/ai-final/DEVELOPER_AGENT_GUIDE.md) — AI Agent 接手開發指南
-- [AGENT_WORKFLOWS.md](file:///c:/Users/User/Downloads/1/ai-final/AGENT_WORKFLOWS.md) — AI Agent 運作與開發工作流
+- [PRD.md](架構/PRD.md) — 產品需求文件
+- [ARCHITECTURE.md](架構/ARCHITECTURE.md) — 系統架構說明
+- [MODELS.md](架構/MODELS.md) — 模型策略
+- [IMPLEMENTATION.md](架構/IMPLEMENTATION.md) — 技術實作路線圖
+- [KNOWLEDGE_GRAPH.md](架構/KNOWLEDGE_GRAPH.md) — 知識圖譜說明
+- [DEVELOPER_AGENT_GUIDE.md](DEVELOPER_AGENT_GUIDE.md) — AI Agent 接手開發指南
+- [AGENT_WORKFLOWS.md](AGENT_WORKFLOWS.md) — AI Agent 運作與開發工作流
 
 <img width="1918" height="906" alt="image" src="https://github.com/user-attachments/assets/0a26255a-e99c-44f9-b7d3-e5322ad4eb3d" />
 
@@ -101,4 +112,3 @@ npm run dev
 <img width="636" height="628" alt="image" src="https://github.com/user-attachments/assets/968b8c04-b984-4cfb-872e-6ce43fbeaa84" />
 <img width="659" height="801" alt="image" src="https://github.com/user-attachments/assets/31b4d7e7-3f6a-4689-b5db-a2181909dec5" />
 <img width="1365" height="712" alt="image" src="https://github.com/user-attachments/assets/06e61a96-db73-4ea9-bc41-bf8b2617480f" />
-

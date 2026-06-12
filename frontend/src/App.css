@@ -497,3 +497,68 @@
   box-shadow: 0 0 8px #f472b6;
   animation: pulse 1.5s infinite;
 }
+
+/* ─── 系統工具箱按鈕與樣式 ─── */
+.system-tools-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  outline: none;
+  font-family: inherit;
+  transition: all var(--transition-fast);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-subtle);
+}
+
+.system-tools-btn:hover {
+  background: rgba(99, 102, 241, 0.15);
+  color: #a5b4fc;
+  border-color: rgba(99, 102, 241, 0.4);
+  box-shadow: 0 0 8px rgba(99, 102, 241, 0.2);
+}
+
+.diagnostics-panel {
+  transition: all 0.3s ease;
+}
+
+.diagnostics-list {
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.status-badge {
+  display: inline-block;
+  text-align: center;
+  transition: all 0.2s ease;
+}
+
+/* System Tools Tabs CSS Overrides */
+.tools-modal-tabs .tab-item:hover {
+  background: rgba(255, 255, 255, 0.04) !important;
+  color: var(--text-primary) !important;
+}
+.tools-modal-tabs .tab-item.active {
+  background: rgba(99, 102, 241, 0.18) !important;
+  color: #c7d2fe !important;
+  box-shadow: 0 0 8px rgba(99, 102, 241, 0.2);
+}
+.tools-modal-body form select:focus, 
+.tools-modal-body form input:focus {
+  outline: none;
+  border-color: var(--accent-primary) !important;
+  box-shadow: 0 0 6px rgba(99, 102, 241, 0.3);
+}
+.tools-modal-body table th {
+  font-weight: 600;
+  letter-spacing: 0.05em;
+}
+.tools-modal-body table tr:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
