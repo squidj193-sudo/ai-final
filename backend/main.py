@@ -171,7 +171,7 @@ def update_role_state(req: RoleStateRequest):
 
 
 @app.get("/api/role-state/{session_id}")
-def get_role_state(session_id: str):
+async def get_role_state(session_id: str):
     state = agent.state_skill.get_state(session_id)
     # 如果狀態全空，但是有已存在的摘要，則在背景自動推導填滿方向！
     if state.is_empty():

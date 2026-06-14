@@ -4,7 +4,7 @@ import remarkGfm from 'remark-gfm'
 import { sendChat, getMatrix, setMatrix as apiSetMatrix } from '../api.js'
 import './MatrixPage.css'
 
-export default function MatrixPage({ sessionId }) {
+export default function MatrixPage({ sessionId, onStateUpdate }) {
   const [matrix, setMatrix] = useState(() => localStorage.getItem(`matrix_${sessionId}`) || '')
   const [loading, setLoading] = useState(false)
   const [generated, setGenerated] = useState(() => !!localStorage.getItem(`matrix_${sessionId}`))
@@ -20,6 +20,7 @@ export default function MatrixPage({ sessionId }) {
             setMatrix(data.matrix)
             setGenerated(true)
             localStorage.setItem(`matrix_${sessionId}`, data.matrix)
+            onStateUpdate?.()
           } else {
             // fallback to local storage
             const saved = localStorage.getItem(`matrix_${sessionId}`) || ''
@@ -28,6 +29,7 @@ export default function MatrixPage({ sessionId }) {
             if (saved) {
               // sync fallback to backend
               await apiSetMatrix(sessionId, saved)
+              onStateUpdate?.()
             }
           }
         }
@@ -53,6 +55,7 @@ export default function MatrixPage({ sessionId }) {
         setGenerated(true)
         localStorage.setItem(`matrix_${sessionId}`, res.content)
         await apiSetMatrix(sessionId, res.content)
+        onStateUpdate?.()
       } else {
         setMatrix(res.content)
         setGenerated(false)

@@ -598,13 +598,13 @@ export default function App() {
           <SummaryPage key={summaryKey} sessionId={sessionId} />
         </div>
         <div style={{ display: activePage === 'matrix' ? 'block' : 'none', height: '100%' }}>
-          <MatrixPage sessionId={sessionId} />
+          <MatrixPage sessionId={sessionId} onStateUpdate={refreshState} />
         </div>
         <div style={{ display: activePage === 'graph' ? 'block' : 'none', height: '100%' }}>
           <GraphPage sessionId={sessionId} activePage={activePage} />
         </div>
         <div style={{ display: activePage === 'direction' ? 'block' : 'none', height: '100%' }}>
-          <DirectionPage sessionId={sessionId} />
+          <DirectionPage sessionId={sessionId} onStateUpdate={refreshState} />
         </div>
       </div>
     )

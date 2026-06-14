@@ -26,7 +26,7 @@ function parseGaps(text) {
   }
 }
 
-export default function DirectionPage({ sessionId }) {
+export default function DirectionPage({ sessionId, onStateUpdate }) {
   const [report, setReport] = useState(() => localStorage.getItem(`direction_${sessionId}`) || '')
   const [loading, setLoading] = useState(false)
 
@@ -40,6 +40,7 @@ export default function DirectionPage({ sessionId }) {
           if (data && data.direction) {
             setReport(data.direction)
             localStorage.setItem(`direction_${sessionId}`, data.direction)
+            onStateUpdate?.()
           } else {
             // fallback to local storage
             const saved = localStorage.getItem(`direction_${sessionId}`) || ''
@@ -47,6 +48,7 @@ export default function DirectionPage({ sessionId }) {
             if (saved) {
               // sync fallback to backend
               await apiSetDirection(sessionId, saved)
+              onStateUpdate?.()
             }
           }
         }
@@ -69,6 +71,7 @@ export default function DirectionPage({ sessionId }) {
       setReport(res.content)
       localStorage.setItem(`direction_${sessionId}`, res.content)
       await apiSetDirection(sessionId, res.content)
+      onStateUpdate?.()
     } catch (e) {
       setReport(`⚠️ 發生錯誤：${e.message}`)
     } finally {
