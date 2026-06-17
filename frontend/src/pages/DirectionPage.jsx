@@ -4,7 +4,29 @@ import remarkGfm from 'remark-gfm'
 import { sendChat, getDirection, setDirection as apiSetDirection } from '../api.js'
 import './DirectionPage.css'
 
-export default function DirectionPage({ sessionId }) {
+// 彩色卡片的左邊框顏色序列
+const GAP_COLORS = [
+  '#818cf8', '#f472b6', '#34d399', '#60a5fa', '#fbbf24', '#a78bfa'
+]
+
+// 從 Markdown 文字解析研究缺口列表
+// 匹配格式：「1. **標題**\n內文」或「1. **標題（補充）**\n內文」
+function parseGaps(text) {
+  if (!text) return []
+  try {
+    const pattern = /\d+\.\s+\*\*(.+?)\*\*(?:[（(][^)）]*[)）])?\n+([\s\S]+?)(?=\n\d+\.|\n---\n|\n##|$)/g
+    const matches = [...text.matchAll(pattern)]
+    if (matches.length === 0) return []
+    return matches.map(m => ({
+      title: m[1].trim(),
+      body: m[2].trim().slice(0, 200),
+    }))
+  } catch {
+    return []
+  }
+}
+
+export default function DirectionPage({ sessionId, onStateUpdate }) {
   const [report, setReport] = useState(() => localStorage.getItem(`direction_${sessionId}`) || '')
   const [loading, setLoading] = useState(false)
 
@@ -18,6 +40,7 @@ export default function DirectionPage({ sessionId }) {
           if (data && data.direction) {
             setReport(data.direction)
             localStorage.setItem(`direction_${sessionId}`, data.direction)
+            onStateUpdate?.()
           } else {
             // fallback to local storage
             const saved = localStorage.getItem(`direction_${sessionId}`) || ''
@@ -25,6 +48,7 @@ export default function DirectionPage({ sessionId }) {
             if (saved) {
               // sync fallback to backend
               await apiSetDirection(sessionId, saved)
+              onStateUpdate?.()
             }
           }
         }
@@ -47,6 +71,7 @@ export default function DirectionPage({ sessionId }) {
       setReport(res.content)
       localStorage.setItem(`direction_${sessionId}`, res.content)
       await apiSetDirection(sessionId, res.content)
+      onStateUpdate?.()
     } catch (e) {
       setReport(`⚠️ 發生錯誤：${e.message}`)
     } finally {
@@ -100,6 +125,32 @@ export default function DirectionPage({ sessionId }) {
           </div>
         ) : (
           <div className="direction-body glass-card fade-in">
+            {/* ── 研究缺口卡片列 ── */}
+            {(() => {
+              const gaps = parseGaps(report)
+              if (gaps.length === 0) return null
+              return (
+                <div className="gap-cards-section">
+                  <div className="gap-cards-label">🔍 識別到的研究缺口</div>
+                  <div className="gap-cards-row">
+                    {gaps.map((gap, i) => (
+                      <div
+                        key={i}
+                        className="gap-card"
+                        style={{ '--gap-color': GAP_COLORS[i % GAP_COLORS.length] }}
+                      >
+                        <div className="gap-card-index">{i + 1}</div>
+                        <div className="gap-card-content">
+                          <div className="gap-card-title">{gap.title}</div>
+                          <div className="gap-card-body">{gap.body}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )
+            })()}
+            {/* ── 完整 Markdown 報告 ── */}
             <div className="markdown-body">
               <ReactMarkdown remarkPlugins={[remarkGfm]}>{report}</ReactMarkdown>
             </div>

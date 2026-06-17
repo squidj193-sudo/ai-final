@@ -140,6 +140,29 @@
 .conv-dot { font-size: 8px; color: var(--accent-primary); }
 .conv-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
+.btn-delete-conv {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 11px;
+  padding: 4px;
+  opacity: 0;
+  transition: opacity 0.2s, color 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.conv-item:hover .btn-delete-conv {
+  opacity: 0.5;
+}
+
+.btn-delete-conv:hover {
+  opacity: 1 !important;
+  color: #f87171;
+}
+
 /* ─── 主內容區 ─── */
 .main-content {
   flex: 1;
@@ -286,3 +309,256 @@
   .direction-row { flex-direction: column; }
   .direction-arrow { display: none; }
 }
+
+/* ─── 研究進度指示器 Stepper ─── */
+.research-stepper {
+  margin: 16px 24px 8px;
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: var(--radius-md);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(10px);
+}
+
+.stepper-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.stepper-steps {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  max-width: 850px;
+}
+
+.step-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  position: relative;
+  transition: transform 0.2s ease;
+  min-width: 70px;
+}
+.step-item:hover {
+  transform: translateY(-2px);
+}
+
+.step-number {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.05);
+  border: 2px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  transition: all 0.3s ease;
+  margin-bottom: 6px;
+}
+
+.step-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 2px;
+}
+
+.step-status-text {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+/* Step Lines */
+.step-line {
+  flex: 1;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.06);
+  margin: 0 8px;
+  margin-top: -16px;
+  transition: background 0.3s ease;
+}
+
+/* Completed State */
+.step-item.completed .step-number {
+  background: linear-gradient(135deg, #10b981, #059669);
+  border-color: #10b981;
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.4);
+}
+.step-item.completed .step-label {
+  color: var(--text-primary);
+}
+.step-item.completed .step-status-text {
+  color: #34d399;
+}
+.step-line.completed {
+  background: #10b981;
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.4);
+}
+
+/* Active State */
+.step-item.active .step-number {
+  background: rgba(99, 102, 241, 0.1);
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 12px rgba(99, 102, 241, 0.4);
+  animation: pulse 2s infinite;
+}
+.step-item.active .step-label {
+  color: var(--accent-primary);
+}
+.step-item.active .step-status-text {
+  color: #a5b4fc;
+}
+
+/* Pending State */
+.step-item.pending .step-number {
+  opacity: 0.4;
+}
+.step-item.pending .step-label {
+  color: var(--text-muted);
+}
+.step-item.pending .step-status-text {
+  color: var(--text-muted);
+}
+
+/* Stepper Toggle Button */
+.stepper-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  outline: none;
+  font-family: inherit;
+  transition: all var(--transition-fast);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-subtle);
+}
+
+.stepper-toggle-btn:hover {
+  background: rgba(99, 102, 241, 0.15);
+  color: #a5b4fc;
+  border-color: rgba(99, 102, 241, 0.4);
+}
+
+.stepper-toggle-btn.active {
+  background: rgba(99, 102, 241, 0.2);
+  color: #a5b4fc;
+  border-color: rgba(99, 102, 241, 0.5);
+  box-shadow: 0 0 8px rgba(99, 102, 241, 0.3);
+}
+
+/* AI Recommendation Styles */
+.stepper-ai-recommendation-hint {
+  font-size: 11px;
+  background: rgba(99, 102, 241, 0.15);
+  color: #a5b4fc;
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  display: inline-flex;
+  align-items: center;
+  font-weight: 500;
+  animation: pulse 2s infinite;
+}
+
+.step-item.recommended {
+  position: relative;
+}
+
+.step-item.recommended .step-number {
+  border-color: #f472b6 !important;
+  box-shadow: 0 0 15px rgba(244, 114, 182, 0.6) !important;
+  transform: scale(1.05);
+}
+
+.recommended-dot {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 8px;
+  height: 8px;
+  background-color: #f472b6;
+  border-radius: 50%;
+  box-shadow: 0 0 8px #f472b6;
+  animation: pulse 1.5s infinite;
+}
+
+/* ─── 系統工具箱按鈕與樣式 ─── */
+.system-tools-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  outline: none;
+  font-family: inherit;
+  transition: all var(--transition-fast);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-subtle);
+}
+
+.system-tools-btn:hover {
+  background: rgba(99, 102, 241, 0.15);
+  color: #a5b4fc;
+  border-color: rgba(99, 102, 241, 0.4);
+  box-shadow: 0 0 8px rgba(99, 102, 241, 0.2);
+}
+
+.diagnostics-panel {
+  transition: all 0.3s ease;
+}
+
+.diagnostics-list {
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.status-badge {
+  display: inline-block;
+  text-align: center;
+  transition: all 0.2s ease;
+}
+
+/* System Tools Tabs CSS Overrides */
+.tools-modal-tabs .tab-item:hover {
+  background: rgba(255, 255, 255, 0.04) !important;
+  color: var(--text-primary) !important;
+}
+.tools-modal-tabs .tab-item.active {
+  background: rgba(99, 102, 241, 0.18) !important;
+  color: #c7d2fe !important;
+  box-shadow: 0 0 8px rgba(99, 102, 241, 0.2);
+}
+.tools-modal-body form select:focus, 
+.tools-modal-body form input:focus {
+  outline: none;
+  border-color: var(--accent-primary) !important;
+  box-shadow: 0 0 6px rgba(99, 102, 241, 0.3);
+}
+.tools-modal-body table th {
+  font-weight: 600;
+  letter-spacing: 0.05em;
+}
+.tools-modal-body table tr:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+

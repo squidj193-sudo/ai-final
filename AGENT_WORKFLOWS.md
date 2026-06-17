@@ -135,7 +135,7 @@ flowchart TD
    * 後端：`cd backend` -> `.\venv\Scripts\python main.py` (確認連通 `http://localhost:8000`)
    * 前端：`cd frontend` -> `cmd /c npm run dev` (確認造訪 `http://localhost:5173`)
 2. **工作流 A & B 測試**：
-   * 前往對話頁面，點選並設定「大、中、小研究方向」。
+   * 前往對話頁面，點選並設定「研究方向」。
    * 檢查設定完成後，Agent 是否自動搜尋並分析了 2 篇論文，且這些論文已成功出現在「論文摘要」記錄頁中。
 3. **工作流 C 測試 (跨頁連動)**：
    * 在對話頁輸入「生成比較矩陣」並等待產出。

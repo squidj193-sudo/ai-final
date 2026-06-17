@@ -61,15 +61,13 @@ export async function setDirection(sessionId, direction) {
   return res.json()
 }
 
-export async function updateRoleState(sessionId, { large, medium, small }) {
+export async function updateRoleState(sessionId, { researchDirection }) {
   const res = await fetch(`${BASE_URL}/role-state`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       session_id: sessionId,
-      large_direction: large || null,
-      medium_direction: medium || null,
-      small_direction: small || null,
+      research_direction: researchDirection || null,
     }),
   })
   if (!res.ok) throw new Error(await res.text())
@@ -98,6 +96,14 @@ export async function saveConversations(conversations) {
   return res.json()
 }
 
+export async function deleteConversation(sessionId) {
+  const res = await fetch(`${BASE_URL}/conversations/${sessionId}`, {
+    method: 'DELETE',
+  })
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
 export async function getChatHistory(sessionId) {
   const res = await fetch(`${BASE_URL}/chat-history/${sessionId}`)
   if (!res.ok) throw new Error(await res.text())
@@ -113,3 +119,86 @@ export async function saveChatHistory(sessionId, history) {
   if (!res.ok) throw new Error(await res.text())
   return res.json()
 }
+
+export async function getGraph(sessionId) {
+  const res = await fetch(`${BASE_URL}/graph/${sessionId}`)
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+export async function resetSystem() {
+  const res = await fetch(`${BASE_URL}/system/reset`, { method: 'POST' })
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+export async function importDemos(sessionId) {
+  const res = await fetch(`${BASE_URL}/system/import-demos`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ session_id: sessionId })
+  })
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+export async function diagnoseSystem() {
+  const res = await fetch(`${BASE_URL}/system/diagnose`)
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+export function downloadBackup() {
+  window.open(`${BASE_URL}/system/backup`, '_blank')
+}
+
+export async function uploadRestore(file) {
+  const form = new FormData()
+  form.append('file', file)
+  const res = await fetch(`${BASE_URL}/system/restore`, {
+    method: 'POST',
+    body: form,
+  })
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+export async function getSystemConfig() {
+  const res = await fetch(`${BASE_URL}/system/config`)
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+export async function saveSystemConfig(config) {
+  const res = await fetch(`${BASE_URL}/system/config`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(config),
+  })
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+export async function getRagDocuments() {
+  const res = await fetch(`${BASE_URL}/system/rag/documents`)
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+export async function deleteRagDocument(paperId) {
+  const res = await fetch(`${BASE_URL}/system/rag/documents/${paperId}`, {
+    method: 'DELETE',
+  })
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+export async function rebuildRagIndex() {
+  const res = await fetch(`${BASE_URL}/system/rag/rebuild`, {
+    method: 'POST',
+  })
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+

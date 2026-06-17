@@ -20,7 +20,7 @@ ai-final/
 │   │   ├── matrix_skill.py    # 文獻比較矩陣 (Markdown Table)
 │   │   └── direction_skill.py # 建議研究課題與可行性評估
 │   └── tools/
-│       └── rag.py             # 向量檢索 (MarkItDown PDF 解析 + ChromaDB)
+│       └── rag.py             # 本地檢索 (MarkItDown PDF 解析 + 本地 Markdown 儲存與詞頻檢索)
 └── frontend/                  # React + Vite 前端
     ├── src/
     │   ├── pages/             # 頁面組件 (對話搜尋、摘要、比較矩陣、研究方向)
@@ -42,11 +42,11 @@ ai-final/
 *   **模組位置**：[search_skill.py](file:///c:/Users/User/Downloads/1/ai-final/backend/skills/search_skill.py)
 *   **邏輯**：串接 Semantic Scholar API，且自動拼接使用者的 `RoleState` (研究方向階層) 上下文以縮小搜尋範圍。內含一個 httpx 指數退避 (Exponential Backoff) 的 429 重試迴圈。
 
-### 3. 本地 PDF 解析與 RAG 向量知識庫
+### 3. 本地 PDF 解析與 RAG 輕量檢索知識庫
 *   **模組位置**：[rag.py](file:///c:/Users/User/Downloads/1/ai-final/backend/tools/rag.py)
 *   **流程**：
     1. 上傳的 PDF 透過 `parse_pdf_to_markdown` 調用微軟 `markitdown` 轉為 Markdown 格式純文字。
-    2. 使用 `models/embedding-001` 作為嵌入模型，將文本以 Sliding Window（1000字，重疊200字）切塊後存入 ChromaDB 本地持久化資料庫 (`./data/chroma`)。
+    2. 將解析結果以 Sliding Window（1500 字，重疊 300 字）切塊並與元數據儲存在本地 `./data/papers/` 中，查詢時使用本地詞頻匹配檢索。
 
 ### 4. 結構化摘要與比較
 *   **結構化摘要**：[analysis_skill.py](file:///c:/Users/User/Downloads/1/ai-final/backend/skills/analysis_skill.py) 要求 Gemini 模型以嚴格的 JSON 格式回傳 `PaperSummary`（包含研究目的、研究方法、主要發現、研究限制）。
@@ -113,4 +113,13 @@ npm run dev
 1.  **即時更新開發日誌**：每次解決 Bug、更新設定或新增功能後，應立即前往 [開發日誌.md](file:///c:/Users/User/Downloads/1/ai-final/%E9%96%8B%E7%99%BC%E6%97%A5%E8%AA%8C.md) 新增或調整記錄。
 2.  **明確列出下一步計畫**：在 [開發日誌.md](file:///c:/Users/User/Downloads/1/ai-final/%E9%96%8B%E7%99%BC%E6%97%A5%E8%AA%8C.md) 的「待辦與下一步」段落中，更新已完成事項，並羅列未完成事項之優先順序，以便下一個 Agent 能立刻接軌。
 3.  **嚴格保護約定配置**：例如核心模型指定使用 `gemma-4-26b-a4b-it`。非經使用者明確指示，不得更換 `.env`、`MODELS.md` 中規定的系統模型。若有任何模型更動，必須於開發日誌特別標記原因。
+
+## 🚫 嚴禁變更與架構邊界 (Guaranteed Architectural Rules)
+
+為了防止優化項目在後續的自動測試與反覆修改中被意外還原，接手的 AI Agent **必須嚴格遵守以下系統設計邊界**：
+
+1. **嚴禁改回三層研究方向**：系統已全面精簡為**單一層級的「研究方向」(`research_direction`)**。嚴禁在 `agent_core.py`、`main.py`、`state_skill.py` 或前端頁面中重新引進 `large_direction`、`medium_direction` 或 `small_direction` 等欄位。
+2. **保留 Lazy Loading（延遲載入）優化**：所有大型科學計算庫（如 `networkx`、`numpy`、`sklearn` 等）必須保持在 `graph_skill.py` 的**函式內部導入**，禁止將其移至檔案頂端全域導入，以維持極速啟動效能。
+3. **保留 Persistent HTTP Client（持久化連線池）**：`SearchSkill` 中必須繼續使用全域持久的 `self.client = httpx.AsyncClient()` 以重用 TCP 連線池，禁止改回每次搜尋時重複 instantiate 的 `async with httpx.AsyncClient()`。
+4. **保留 Rule-based Fast Pass（零延遲快速通道）**：意圖偵測函式 `detect_intent` 中必須維持關鍵字優先過濾的快取設計，在匹配到搜尋/矩陣/方向等請求時，直接由本地常規邏輯觸發對應 Skills，不得使其退化為每次皆由 LLM 作出 Function Calling。
 

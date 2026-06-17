@@ -1,0 +1,368 @@
+﻿diff --git a/backend/main.py b/backend/main.py
+index a6a0b05..430db2b 100644
+--- a/backend/main.py
++++ b/backend/main.py
+@@ -71,9 +71,7 @@ class ChatRequest(BaseModel):
+ 
+ class RoleStateRequest(BaseModel):
+     session_id: str
+-    large_direction: str | None = None
+-    medium_direction: str | None = None
+-    small_direction: str | None = None
++    research_direction: str | None = None
+ 
+ 
+ # ??? API 蝡舫? ?????????????????????????????????????????????????????????
+@@ -167,9 +165,7 @@ def set_direction(session_id: str, req: DirectionRequest):
+ def update_role_state(req: RoleStateRequest):
+     state = agent.update_role_state(
+         req.session_id,
+-        large_direction=req.large_direction,
+-        medium_direction=req.medium_direction,
+-        small_direction=req.small_direction,
++        research_direction=req.research_direction,
+     )
+     return {"state": state}
+ 
+diff --git a/backend/skills/graph_skill.py b/backend/skills/graph_skill.py
+index 85f11aa..fde2485 100644
+--- a/backend/skills/graph_skill.py
++++ b/backend/skills/graph_skill.py
+@@ -1,17 +1,11 @@
+-import numpy as np
+-import networkx as nx
+-from sklearn.feature_extraction.text import TfidfVectorizer
+-from sklearn.metrics.pairwise import cosine_similarity
+-from pyvis.network import Network
+-import community as community_louvain
+-import jieba
+ import re
+ import logging
+ 
+-# Disable jieba default console output logging to keep terminal output clean
+-jieba.setLogLevel(logging.WARNING)
++# Lazy-loaded modules will be imported inside functions to speed up AgentCore startup time
+ 
+ def ch_en_tokenizer(text):
++    import jieba
++    jieba.setLogLevel(logging.WARNING)
+     if not text:
+         return []
+     words = jieba.lcut(text.lower())
+@@ -37,6 +31,13 @@ class SessionGraphSkill:
+         """
+         Generates an interactive PyVis HTML representation of the session's papers.
+         """
++        import networkx as nx
++        import numpy as np
++        from sklearn.feature_extraction.text import TfidfVectorizer
++        from sklearn.metrics.pairwise import cosine_similarity
++        from pyvis.network import Network
++        import community as community_louvain
++
+         if not summaries:
+             return "<h3>?桀?撠撌脣???隢?嚗????閰望?撠???PDF ??撠?????/h3>"
+ 
+@@ -224,6 +225,11 @@ class SessionGraphSkill:
+         """
+         閮??? PageRank (?詨?隢???摨??etweenness Centrality (頝冽?瘣暹?蝝??? Louvain 蝷曄黎 (?銵?瘣?
+         """
++        import networkx as nx
++        import numpy as np
++        from sklearn.feature_extraction.text import TfidfVectorizer
++        from sklearn.metrics.pairwise import cosine_similarity
++        import community as community_louvain
+ 
+         if not summaries:
+             return {"influence": [], "communities": {}, "bridges": []}
+@@ -326,6 +332,12 @@ class SessionGraphSkill:
+         """
+         閮?銝血??唾??霅?霅? Nodes ??Edges 蝯???JSON 鞈?
+         """
++        import networkx as nx
++        import numpy as np
++        from sklearn.feature_extraction.text import TfidfVectorizer
++        from sklearn.metrics.pairwise import cosine_similarity
++        import community as community_louvain
++
+         if not summaries:
+             return {"nodes": [], "edges": [], "count": 0}
+ 
+diff --git a/backend/skills/search_skill.py b/backend/skills/search_skill.py
+index fe9f279..0850166 100644
+--- a/backend/skills/search_skill.py
++++ b/backend/skills/search_skill.py
+@@ -27,6 +27,8 @@ class SearchSkill:
+         self.cache_path.parent.mkdir(parents=True, exist_ok=True)
+         self._cache = {}  # ?亥岷蝯??祆?敹怠?
+         self._load_cache()
++        # Initialize a single persistent client to reuse TCP connection pool
++        self.client = httpx.AsyncClient(timeout=15)
+ 
+     def _load_cache(self):
+         if self.cache_path.exists():
+@@ -85,40 +87,39 @@ class SearchSkill:
+         import random
+         data = None
+         last_error = None
+-        async with httpx.AsyncClient(timeout=15) as client:
+-            max_retries = 3  # ?拙漲皜??憭折?閰行活?賂??脫迫頞撱園
+-            for attempt in range(max_retries):
+-                try:
+-                    resp = await client.get(
+-                        self.SEMANTIC_SCHOLAR_URL, params=params, headers=self.headers
+-                    )
+-                    resp.raise_for_status()
+-                    data = resp.json()
+-                    break
+-                except httpx.HTTPStatusError as e:
+-                    last_error = e
+-                    if e.response.status_code == 429 and attempt < max_retries - 1:
+-                        import asyncio
+-                        # Exponential backoff: 1s, 2s, 4s
+-                        sleep_time = (2 ** attempt) + random.uniform(0.1, 0.5)
+-                        await asyncio.sleep(sleep_time)
+-                        continue
+-                except (httpx.RequestError, Exception) as e:
+-                    last_error = e
+-                    if attempt < max_retries - 1:
+-                        import asyncio
+-                        await asyncio.sleep(1 + attempt)
+-                        continue
++        client = self.client
++        max_retries = 3  # ?拙漲皜??憭折?閰行活?賂??脫迫頞撱園
++        for attempt in range(max_retries):
++            try:
++                resp = await client.get(
++                    self.SEMANTIC_SCHOLAR_URL, params=params, headers=self.headers
++                )
++                resp.raise_for_status()
++                data = resp.json()
++                break
++            except httpx.HTTPStatusError as e:
++                last_error = e
++                if e.response.status_code == 429 and attempt < max_retries - 1:
++                    import asyncio
++                    # Exponential backoff: 1s, 2s, 4s
++                    sleep_time = (2 ** attempt) + random.uniform(0.1, 0.5)
++                    await asyncio.sleep(sleep_time)
++                    continue
++            except (httpx.RequestError, Exception) as e:
++                last_error = e
++                if attempt < max_retries - 1:
++                    import asyncio
++                    await asyncio.sleep(1 + attempt)
++                    continue
+ 
+         # ??API 摰頞?????429 憭望?嚗?閰血??單璈隡澆翰????寞?嚗?         if data is None:
+-            # 撠??典??摮?敹怠?嚗????? 429 銝?隞颱?敹怠?嚗?亙??喟洵銝??蝛箇?敹怠??踹?銝剜
++            # 撠??典??摮?敹怠?
+             for k, val in self._cache.items():
+-                if full_query.lower() in k.lower() or (last_error and isinstance(last_error, httpx.HTTPStatusError) and last_error.response.status_code == 429 and val):
++                if full_query.lower() in k.lower():
+                     return val
+             if last_error:
+                 if isinstance(last_error, httpx.HTTPStatusError) and last_error.response.status_code == 429:
+-                    # 憒???瘝?隞颱?敹怠??舐嚗???內
+                     raise RuntimeError("摮貉? API ?????餌?嚗?29 Too Many Requests嚗?隢???閰艾頂蝯勗歇?芸?憟摰靽風??)
+                 raise last_error
+             raise RuntimeError("?⊥?????單??餅?撠?API嚗??⊥?啣翰????)
+@@ -165,24 +166,24 @@ class SearchSkill:
+             "fields": "paperId,title,authors,year,abstract,externalIds,url",
+         }
+         
+-        async with httpx.AsyncClient(timeout=15) as client:
+-            try:
+-                resp = await client.get(url, params=params, headers=self.headers)
+-                if resp.status_code == 200:
+-                    item = resp.json()
+-                    return PaperResult(
+-                        paper_id=item.get("paperId", "") or "",
+-                        title=item.get("title", "嚗璅?嚗?),
+-                        authors=[a.get("name", "") for a in item.get("authors", [])],
+-                        year=item.get("year"),
+-                        abstract=item.get("abstract"),
+-                        url=item.get("url"),
+-                        doi=item.get("externalIds", {}).get("DOI"),
+-                    )
+-            except Exception as e:
+-                import logging
+-                logger = logging.getLogger("search_skill")
+-                logger.warning(f"Failed to fetch paper by id/url '{paper_id}': {e}")
++        client = self.client
++        try:
++            resp = await client.get(url, params=params, headers=self.headers)
++            if resp.status_code == 200:
++                item = resp.json()
++                return PaperResult(
++                    paper_id=item.get("paperId", "") or "",
++                    title=item.get("title", "嚗璅?嚗?),
++                    authors=[a.get("name", "") for a in item.get("authors", [])],
++                    year=item.get("year"),
++                    abstract=item.get("abstract"),
++                    url=item.get("url"),
++                    doi=item.get("externalIds", {}).get("DOI"),
++                )
++        except Exception as e:
++            import logging
++            logger = logging.getLogger("search_skill")
++            logger.warning(f"Failed to fetch paper by id/url '{paper_id}': {e}")
+         return None
+ 
+ 
+diff --git a/backend/skills/state_skill.py b/backend/skills/state_skill.py
+index cb48fab..4433a73 100644
+--- a/backend/skills/state_skill.py
++++ b/backend/skills/state_skill.py
+@@ -7,42 +7,21 @@ from pydantic import BaseModel
+ 
+ 
+ class RoleState(BaseModel):
+-    large_direction: Optional[str] = None   # 憭扳??靘?嚗???-    medium_direction: Optional[str] = None  # 銝剜??靘?嚗云?質?餅?
+-    small_direction: Optional[str] = None   # 撠??靘?嚗?衣丹
++    research_direction: Optional[str] = None   # ?弦?孵?嚗?憒???蝷血云?質?餅?
+ 
+     def is_empty(self) -> bool:
+-        return not any([self.large_direction, self.medium_direction, self.small_direction])
++        return not self.research_direction
+ 
+     def get_search_context(self) -> str:
+-        """????蝙?函?銝???銝莎??芸?餈??蝝啁溶???"""
+-        if self.small_direction:
+-            return self.small_direction
+-        elif self.medium_direction:
+-            return self.medium_direction
+-        elif self.large_direction:
+-            return self.large_direction
+-        return ""
++        """????蝙?函?銝???銝?""
++        return self.research_direction or ""
+ 
+     def get_full_hierarchy_desc(self) -> str:
+-        """?摰??蝛嗆?惜蝝?餈?""
+-        parts = []
+-        if self.large_direction:
+-            parts.append(self.large_direction)
+-        if self.medium_direction:
+-            parts.append(self.medium_direction)
+-        if self.small_direction:
+-            parts.append(self.small_direction)
+-        return " > ".join(parts) if parts else "?芾身摰?
++        """?摰??蝛嗆??餈?""
++        return self.research_direction or "?芾身摰?
+ 
+     def get_level(self) -> str:
+-        if self.small_direction:
+-            return "撠??
+-        elif self.medium_direction:
+-            return "銝剜??
+-        elif self.large_direction:
+-            return "憭扳??
+-        return "?芾身摰?
++        return "?弦?孵?" if self.research_direction else "?芾身摰?
+ 
+ 
+ class StateSkill:
+@@ -70,5 +49,4 @@ class StateSkill:
+         if state.is_empty():
+             return "撠閮剖??弦?孵???
+         ctx = state.get_search_context()
+-        level = state.get_level()
+-        return f"?桀??弦?孵?嚗level}嚗?{ctx}"
++        return f"?桀??弦?孵?嚗ctx}"
+diff --git a/frontend/src/App.jsx b/frontend/src/App.jsx
+index 40c7c4b..64c70b7 100644
+--- a/frontend/src/App.jsx
++++ b/frontend/src/App.jsx
+@@ -217,7 +217,7 @@ export default function App() {
+ 
+   const [showRoleModal, setShowRoleModal] = useState(false)
+   const [showAdvanced, setShowAdvanced] = useState(false)
+-  const [roleForm, setRoleForm] = useState({ large: '', medium: '', small: '' })
++  const [roleForm, setRoleForm] = useState({ researchDirection: '' })
+   const [roleDesc, setRoleDesc] = useState('撠閮剖??弦?孵?')
+   const [summaryKey, setSummaryKey] = useState(0)
+ 
+@@ -331,9 +331,7 @@ export default function App() {
+       const d = await getRoleState(sessionId)
+       setRoleDesc(d.description)
+       setRoleForm({
+-        large: d.state.large_direction || '',
+-        medium: d.state.medium_direction || '',
+-        small: d.state.small_direction || '',
++        researchDirection: d.state.research_direction || '',
+       })
+ 
+       const [sumsRes, matRes, dirRes] = await Promise.all([
+@@ -526,13 +524,13 @@ export default function App() {
+             <div className="stepper-steps">
+               
+               {/* Step 1 */}
+-              <div className={`step-item ${roleForm.large ? 'completed' : 'active'} ${aiRecommendedStep === 1 ? 'recommended' : ''}`} onClick={() => setShowRoleModal(true)}>
++              <div className={`step-item ${roleForm.researchDirection ? 'completed' : 'active'} ${aiRecommendedStep === 1 ? 'recommended' : ''}`} onClick={() => setShowRoleModal(true)}>
+                 <div className="step-number">
+                   ?
+                   {aiRecommendedStep === 1 && <span className="recommended-dot" />}
+                 </div>
+                 <div className="step-label">?弦摰?</div>
+-                <div className="step-status-text">{roleForm.large ? '撌脰身摰? : '敺?雿?}</div>
++                <div className="step-status-text">{roleForm.researchDirection ? '撌脰身摰? : '敺?雿?}</div>
+               </div>
+               
+               <div className={`step-line ${summariesCount >= 2 ? 'completed' : ''}`} />
+@@ -623,7 +621,7 @@ export default function App() {
+                   </span>
+                 </div>
+                 
+-                {roleForm.large ? (
++                {roleForm.researchDirection ? (
+                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                     <div className="direction-pill" style={{
+                       background: 'rgba(99, 102, 241, 0.12)',
+@@ -635,7 +633,7 @@ export default function App() {
+                       fontWeight: '500'
+                     }}>
+                       <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', marginRight: '4px' }}>?</span>
+-                      {roleForm.large}
++                      {roleForm.researchDirection}
+                     </div>
+                   </div>
+                 ) : (
+@@ -685,12 +683,12 @@ export default function App() {
+                     ?典隞亙甇斗??撓?交?敺株矽?桀???蝛嗅之?孵?嚗摮??喳????                   </p>
+                   <div className="direction-field" style={{ maxWidth: '400px' }}>
+-                    <label>?弦?孵? (憭扳??</label>
++                    <label>?弦?孵?</label>
+                     <input
+                       id="large-direction-input"
+-                      value={roleForm.large}
+-                      onChange={e => setRoleForm(p => ({ ...p, large: e.target.value }))}
+-                      placeholder="靘??????摮詻犖撌交?扼偶蝥撅??賣?"
++                      value={roleForm.researchDirection}
++                      onChange={e => setRoleForm({ researchDirection: e.target.value })}
++                      placeholder="靘???蝷血云?質?餅??辣??之??閮璅∪?敺株矽"
+                     />
+                   </div>
+                 </div>
+diff --git a/frontend/src/api.js b/frontend/src/api.js
+index f4811e7..5771932 100644
+--- a/frontend/src/api.js
++++ b/frontend/src/api.js
+@@ -61,15 +61,13 @@ export async function setDirection(sessionId, direction) {
+   return res.json()
+ }
+ 
+-export async function updateRoleState(sessionId, { large, medium, small }) {
++export async function updateRoleState(sessionId, { researchDirection }) {
+   const res = await fetch(`${BASE_URL}/role-state`, {
+     method: 'POST',
+     headers: { 'Content-Type': 'application/json' },
+     body: JSON.stringify({
+       session_id: sessionId,
+-      large_direction: large || null,
+-      medium_direction: medium || null,
+-      small_direction: small || null,
++      research_direction: researchDirection || null,
+     }),
+   })
+   if (!res.ok) throw new Error(await res.text())

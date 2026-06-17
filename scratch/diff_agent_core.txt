@@ -1,0 +1,837 @@
+﻿diff --git a/backend/agent_core.py b/backend/agent_core.py
+index 9f90a36..7d384ad 100644
+--- a/backend/agent_core.py
++++ b/backend/agent_core.py
+@@ -31,7 +31,10 @@ SYSTEM_PROMPT = """雿銝雿?瘜冽?role_context}????摮貉???    - 撱箇?憭?隢???頛??    - ?寞??????琿??銵??瑕飛銵?潛??弦隤脤?
+ 
+-隢偶?蝙?函?擃葉??閬?""
++?扔?????
++- 隢?亦策?箏?蝑?**蝯?銝?**?典?閬??剜?隞颱??唳頛詨雿撌梁?閫摰?嚗?憒?"Role: ..."嚗???靘? "Status of Field..."嚗?蝔??隞颱??蝙?刻?瘙?蝟餌絞??甈???+- ???憟蜓憿陛?閬?瘞?飛銵?撠釣???湔頛詨???批捆?祈澈嚗摨行?嗅 3-5 ?亥店?扼?+- 隢偶?蝙?函?擃葉??閬?""
+ 
+ INTENT_PROMPT = """??隞乩?雿輻???荔??斗?嗆????? ??憿??賊?隤芣?嚗?@@ -70,14 +73,12 @@ def analyze_research_direction() -> str:
+     """
+     return "撌脰孛?澆???蝛嗆??
+ 
+-def set_research_direction(large_direction: str, medium_direction: str = "", small_direction: str = "") -> str:
++def set_research_direction(research_direction: str) -> str:
+     """
+-    閮剖???嫣蝙?刻?摮貉??弦憭扳?葉?孵????孵?蝭???+    閮剖???嫣蝙?刻?摮貉??弦?孵?蝭??? 
+     Args:
+-        large_direction: ?銝惜??蝭?嚗?憒????撠????颯犖撌交?扼偶蝥撅?-        medium_direction: 銝剖惜甈∠?蝛嗆?銵?摮???靘?嚗?極蝔洵銝誨??擃云?質?餅??楛摨血飛蝧?-        small_direction: ?琿??弦銝駁?????靘?嚗RISPR ?箏?蝺刻摩?４??辣??衣丹???隞嗅皜研?+        research_direction: ?琿??弦銝駁???????靘?嚗?衣丹憭芷?賡瘙之??閮璅∪?敺株矽???怠?楊頛胯?     """
+     return "撌脰孛?潸身摰?蝛嗆??
+ 
+@@ -98,9 +99,9 @@ class AgentCore:
+             self.MODEL_NAME,
+             generation_config=genai.GenerationConfig(
+                 temperature=0.1,
+-                max_output_tokens=1024
++                max_output_tokens=32,
++                response_mime_type="application/json"
+             ),
+-            system_instruction="You are a strict JSON assistant. You must ONLY output a single valid JSON object or JSON list as requested, starting with '{' or '[' and ending with '}' or ']'. Never output any markdown code blocks (like ```json), explanations, preambles, or postscripts."
+         )
+ 
+         self.state_skill = StateSkill()
+@@ -172,27 +173,7 @@ class AgentCore:
+         import json
+         raw_clean = raw.strip()
+         
+-        # 1. ?岫?風???賜? { ???} 蝯偏摮?銝莎?撠蝚砌??隞亥◤頛??JSON ?拐辣
+-        for i in range(len(raw_clean)):
+-            if raw_clean[i] == '{':
+-                for j in range(len(raw_clean), i, -1):
+-                    if raw_clean[j-1] == '}':
+-                        try:
+-                            return json.loads(raw_clean[i:j])
+-                        except:
+-                            pass
+-
+-        # 2. ?岫?風???賜? [ ???] 蝯偏摮?銝莎?撠蝚砌??隞亥◤頛??JSON ???
+-        for i in range(len(raw_clean)):
+-            if raw_clean[i] == '[':
+-                for j in range(len(raw_clean), i, -1):
+-                    if raw_clean[j-1] == ']':
+-                        try:
+-                            return json.loads(raw_clean[i:j])
+-                        except:
+-                            pass
+-
+-        # 3. ??寞?嚗蝯梁? Regex ?寥?
++        # 撠蝚砌???{ ?唳?敺???}
+         match = re.search(r'\{.*\}', raw_clean, re.DOTALL)
+         if match:
+             json_str = match.group(0)
+@@ -203,7 +184,9 @@ class AgentCore:
+         try:
+             return json.loads(json_str)
+         except Exception as e:
++            # ?岫皜?撣貉?摮???Markdown 璅?
+             cleaned = re.sub(r'```(?:json)?', '', json_str).strip()
++            # 蝘駁???撠曉?賜??釭??
+             start = cleaned.find('{')
+             end = cleaned.rfind('}')
+             if start != -1 and end != -1:
+@@ -214,8 +197,22 @@ class AgentCore:
+                 pass
+             raise e
+ 
+-
+     async def detect_intent(self, message: str) -> dict:
++        # 1. Rule-based Fast Pass (?摮??瞈橘?撖衣?嗅辣?脤?瞈?
++        msg_lower = message.lower()
++        if any(kw in msg_lower for kw in ["??", "?亥岷", "?暹???, "?曇???, "search"]):
++            query = message
++            for prefix in ["撟急???", "撟急??亥岷", "???", "?亥岷?", "??", "?亥岷", "search for", "search"]:
++                if prefix in query:
++                    query = query.split(prefix, 1)[1].strip()
++            query = query.strip("???餉????!??嚗?)
++            return {"intent": "search", "query": query}
++        elif any(kw in msg_lower for kw in ["?拚", "撠?", "瘥?銵冽", "matrix"]):
++            return {"intent": "matrix", "query": ""}
++        elif any(kw in msg_lower for kw in ["?孵?撱箄降", "?弦?孵?", "?弦憿", "?航?憿", "隤脤?", "direction"]):
++            return {"intent": "direction", "query": ""}
++
++        # 2. Fallback to Gemini
+         prompt = INTENT_PROMPT.format(message=message)
+         logger.info(f"Detecting intent for message: {message[:50]}...")
+         response = await asyncio.to_thread(self._intent_model.generate_content, prompt)
+@@ -281,7 +278,7 @@ class AgentCore:
+ 銝剜??摮?{query}
+ ?望??摮?"""
+         try:
+-            response = await asyncio.to_thread(self._chat_model.generate_content, prompt)
++            response = await asyncio.to_thread(self._intent_model.generate_content, prompt)
+             translated = response.text.strip()
+             # 蝘駁撣貉???鋆???             translated = translated.strip('"\'`')
+@@ -464,189 +461,470 @@ class AgentCore:
+         """銝餉?撠店?折撖虫??摩"""
+         import google.api_core.exceptions as g_exceptions
+         logger.info(f"Chat request - Session ID: {session_id} | Message: {message[:100]}")
++        
++        # 1. ?芸??菜葫?? (Zero-Turn)
++        intent_res = await self.detect_intent(message)
++        intent = intent_res.get("intent", "chat")
++        query = intent_res.get("query", "")
++        
+         role_state = self.state_skill.get_state(session_id)
+         role_context = role_state.get_search_context()
+         full_context = role_state.get_full_hierarchy_desc()
+-
+-        # 1. ?芸?瑼Ｘ葫雿輻?撓?交?血???URL ??DOI
+-        import re
+-        cleaned_message = re.sub(r'(https?)\s*:\s*/\s*/', r'\1://', message)
+-        url_match = re.search(r'(https?://[^\s]+)', cleaned_message)
+-        doi_match = re.search(r'(10\.\d{4,9}/[-._;()/:a-zA-Z0-9]+)', cleaned_message)
+         
+-        is_url_or_doi = False
+-        target_query = ""
+-        if doi_match:
+-            is_url_or_doi = True
+-            target_query = doi_match.group(1)
+-        elif url_match:
+-            is_url_or_doi = True
+-            target_query = url_match.group(1)
+-            
+-        if is_url_or_doi:
+-            logger.info(f"Direct URL/DOI detected: {target_query}")
+-            paper = await self.search_skill.fetch_paper_by_id_or_url(target_query)
+-            if paper:
+-                import uuid
+-                paper_id = paper.paper_id or str(uuid.uuid4())[:8]
+-                content_paper = paper.abstract or "?⊥?閬?
+-                
+-                # 雿輻 analysis_skill.summarize ????
+-                summary = await self.analysis_skill.summarize(
+-                    paper_id=paper_id,
+-                    title=paper.title,
+-                    authors=paper.authors,
+-                    year=paper.year,
+-                    content=content_paper,
+-                )
+-                
+-                if session_id not in self._summaries:
+-                    self._summaries[session_id] = []
+-                # ?踹????
+-                if not any(x.title.lower() == summary.title.lower() for x in self._summaries[session_id]):
+-                    self._summaries[session_id].append(summary)
+-                self._save_session_data()
+-                
+-                # ??撠?閮神??RAG
+-                try:
+-                    self.rag_store.add_document(paper_id, content_paper, {"title": summary.title, "year": summary.year})
+-                except Exception as ree:
+-                    logger.warning(f"Failed to add to RAG: {ree}")
+-                
+-                result_text = f"??撌脫????蒂???冽?靘?隢?嚗?*{summary.title}**\n\n"
+-                result_text += f"**?弦?桃?嚗?* {summary.research_goal}\n\n"
+-                result_text += f"**銝餉??潛嚗?* {summary.main_findings}\n\n"
+-                result_text += f"**?弦?嚗?* {summary.limitations}\n\n"
+-                result_text += "*(甇方???瑽???撌脰?摮????閬??葉)*"
+-                
+-                suggestions = await self._generate_suggestions("analyze", result_text, role_context, message)
+-                return {"type": "analyze", "content": result_text, "suggestions": suggestions}
+-            else:
+-                # ??寞?嚗??瘜? Semantic Scholar ??摮貉?鞈?嚗?閰衣?亦?雯?摰寥脰???
+-                if target_query.startswith("http://") or target_query.startswith("https://"):
+-                    try:
+-                        logger.info(f"Semantic Scholar lookup failed. Crawling URL directly: {target_query}")
+-                        import httpx
+-                        async with httpx.AsyncClient(timeout=15, follow_redirects=True) as client:
+-                            resp = await client.get(target_query, headers={
+-                                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+-                            })
+-                            if resp.status_code == 200:
+-                                html_content = resp.text
+-                                import re
+-                                text_content = re.sub(r'<script.*?</script>', '', html_content, flags=re.DOTALL)
+-                                text_content = re.sub(r'<style.*?</style>', '', text_content, flags=re.DOTALL)
+-                                text_content = re.sub(r'<.*?>', '', text_content, flags=re.DOTALL)
+-                                text_content = re.sub(r'\s+', ' ', text_content).strip()
+-                                
+-                                title_match = re.search(r'<title>(.*?)</title>', html_content, re.IGNORECASE)
+-                                page_title = title_match.group(1).strip() if title_match else "蝬脰楝??"
+-                                
+-                                import uuid
+-                                paper_id = str(uuid.uuid4())[:8]
+-                                summary = await self.analysis_skill.summarize(
+-                                    paper_id=paper_id,
+-                                    title=page_title,
+-                                    authors=["蝬脰楝雿?],
+-                                    year=None,
+-                                    content=text_content[:8000],
+-                                )
+-                                
+-                                if session_id not in self._summaries:
+-                                    self._summaries[session_id] = []
+-                                if not any(x.title.lower() == summary.title.lower() for x in self._summaries[session_id]):
+-                                    self._summaries[session_id].append(summary)
+-                                self._save_session_data()
+-                                
+-                                result_text = f"??撌脫???蒂??蝬脤???嚗?*{summary.title}**\n\n"
+-                                result_text += f"**?弦?桃?嚗?* {summary.research_goal}\n\n"
+-                                result_text += f"**銝餉??潛嚗?* {summary.main_findings}\n\n"
+-                                result_text += f"**?弦?嚗?* {summary.limitations}\n\n"
+-                                result_text += "*(甇斗?蝡?瑽???撌脰?摮????閬??葉)*"
+-                                
+-                                suggestions = await self._generate_suggestions("analyze", result_text, role_context, message)
+-                                return {"type": "analyze", "content": result_text, "suggestions": suggestions}
+-                    except Exception as ce:
+-                        logger.warning(f"Failed to crawl URL fallback '{target_query}': {ce}")
+-                
+-                logger.warning(f"Could not fetch paper details by URL/DOI directly. Returning error message.")
+-                if target_query.startswith("http://") or target_query.startswith("https://"):
+-                    error_desc = f"?? ?⊥?霈?府蝬脤????摰對??航?閰脩雯蝡??脩?脫??塚?憒?Medium / Cloudflare嚗?銝惇?澆?飛銵??澈?澆?嚗n\n**撱箄降?剁?**\n1. ?湔雿輻 **???銝隢???* ?銝 PDF 瑼??n2. 撠???閬??扳?銴ˊ銝衣?亥票銝撠店獢葉嚗???券脰?????
+-                    return {"type": "error", "content": error_desc, "suggestions": ["?湔???賊??", "憒?銝 PDF 隢?"]}
+-                else:
+-                    error_desc = f"?? ?⊥??? DOI `{target_query}` ?脣?隢?鞈?嚗emantic Scholar 鞈?摨思葉?航撠?園?甇?DOI嚗n\n**撱箄降?剁?**\n1. 雿輻 **???銝隢???* ?銝 PDF 瑼??n2. ?湔頛詨?摮???冽?撠隡潭??颯?
+-                    return {"type": "error", "content": error_desc, "suggestions": ["?湔???賊??", "憒?銝 PDF 隢?"]}
+-
+-        # 2. ??瑼Ｘ葫??Zero-Turn 頝舐
++        # 2. ?芸?????啁?蝛嗆??         try:
+-            intent_res = await self.detect_intent(message)
+-            intent = intent_res.get("intent", "chat")
+-            query = intent_res.get("query") or message
+-            
+-            # 撠?脣??啗???閬??撠店銝剛?撠蒂?湔?孵?
+             has_summaries = bool(self.get_summaries(session_id))
+             if not has_summaries:
++                # 撠?脣??啗???閬?????閰曹葉?芸??典?銝行?唳??                 await self._infer_and_update_direction(session_id, "", [], message)
+                 # ????湔敺? context
+                 role_state = self.state_skill.get_state(session_id)
+                 role_context = role_state.get_search_context()
+                 full_context = role_state.get_full_hierarchy_desc()
++            else:
++                if intent == "set_direction":
++                    extracted = await self._extract_directions_from_message(message)
++                    if extracted.get("research_direction"):
++                        self.state_skill.update_state(
++                            session_id,
++                            research_direction=extracted["research_direction"]
++                        )
++                        # ????湔敺? context
++                        role_state = self.state_skill.get_state(session_id)
++                        role_context = role_state.get_search_context()
++                        full_context = role_state.get_full_hierarchy_desc()
+         except Exception as e:
+-            logger.warning(f"Intent detection or auto-updating direction failed: {e}")
+-            intent = "chat"
+-            query = message
++            logger.warning(f"Auto-updating direction failed: {e}")
++
++        # ??? Zero-Turn Direct Tool Execution (100% 皞Ⅱ?湧?嚗??颱?甈?LLM 撌亙????) ???
++        if intent == "search":
++            logger.info(f"Zero-Turn: Direct search triggered for query '{query or message}'")
++            translated_query = await self._translate_query_to_english(query or message)
++            translated_context = await self._translate_query_to_english(role_context) if role_context else ""
++            papers = await self.search_skill.search(translated_query, context=translated_context)
++            import uuid
++            summary_tasks = [self.analysis_skill.summarize(paper_id=p.paper_id or str(uuid.uuid4())[:8], title=p.title, authors=p.authors, year=p.year, content=p.abstract or "?⊥?閬?) for p in papers]
++            if summary_tasks:
++                try:
++                    summaries = await asyncio.gather(*summary_tasks, return_exceptions=True)
++                    if session_id not in self._summaries:
++                        self._summaries[session_id] = []
++                    for s in summaries:
++                        if not isinstance(s, Exception) and not any(x.title.lower() == s.title.lower() for x in self._summaries[session_id]):
++                            self._summaries[session_id].append(s)
++                    self._save_session_data()
++                    
++                    valid_summaries = [s for s in summaries if not isinstance(s, Exception)]
++                    if valid_summaries:
++                        await self._infer_and_update_direction(
++                            session_id,
++                            valid_summaries[0].title,
++                            valid_summaries[0].keywords,
++                            valid_summaries[0].research_goal + " " + valid_summaries[0].main_findings
++                        )
++                except Exception as e:
++                    logger.warning(f"Auto-summarizing failed: {e}")
++            result_text = f"撌脫??{len(papers)} 蝭????\n\n"
++            for p in papers:
++                authors = "??.join(p.authors[:3]) + ("..." if len(p.authors) > 3 else "")
++                result_text += f"?? **{p.title}**\n"
++                result_text += f"   - 雿?{authors}嚚僑隞踝?{p.year or '?芰'}\n"
++                if p.abstract:
++                    result_text += f"   - ??嚗p.abstract[:150]}...\n"
++                result_text += "\n"
++            result_text += "*(隞乩????啁?隢?撌脰???蒂摮????閬???銝哨??典隞亙??????*"
++            
++            suggestions = await self._generate_suggestions("search", result_text, role_context, message)
++            return {"type": "search", "content": result_text, "papers": [p.model_dump() for p in papers], "suggestions": suggestions}
++
++        elif intent == "matrix":
++            logger.info("Zero-Turn: Direct comparison matrix generation triggered")
++            summaries = []
++            seen = set()
++            for sums in self._summaries.values():
++                for s in sums:
++                    if s.title.lower() not in seen:
++                        seen.add(s.title.lower())
++                        summaries.append(s)
++            if len(summaries) < 2:
++                return {"type": "chat", "content": "?桀?撌脣???隢??賊?銝雲嚗撠?閬?2 蝭?嚗????單???隢?敺???瘥??拚??}
++            matrix = await self.matrix_skill.build_matrix(summaries, role_context=full_context)
++            self._matrix_cache[session_id] = matrix
++            self._save_session_data()
++            
++            suggestions = await self._generate_suggestions("matrix", matrix, role_context, message)
++            return {"type": "matrix", "content": matrix, "suggestions": suggestions}
++
++        elif intent == "direction":
++            logger.info("Zero-Turn: Direct research direction suggestions triggered")
++            matrix = self._matrix_cache.get(session_id)
++            if not matrix:
++                summaries = []
++                seen = set()
++                for sums in self._summaries.values():
++                    for s in sums:
++                        if s.title.lower() not in seen:
++                            seen.add(s.title.lower())
++                            summaries.append(s)
++                if len(summaries) >= 2:
++                    matrix = await self.matrix_skill.build_matrix(summaries, role_context=full_context)
++                    self._matrix_cache[session_id] = matrix
++                    self._save_session_data()
++                else:
++                    return {"type": "chat", "content": "?桀?撌脣???隢??賊?銝雲嚗撠?閬?2 蝭?嚗????單???隢?敺????弦?孵?撱箄降??}
++            
++            # 閮?????
++            from skills.graph_skill import SessionGraphSkill
++            summaries = self.get_summaries(session_id)
++            graph_insights_str = "撠頞喳??撱箇?????嚗撠?閬?2 蝭???
++            if len(summaries) >= 2:
++                try:
++                    g_skill = SessionGraphSkill()
++                    metrics = g_skill.compute_graph_metrics(summaries)
++                    
++                    infl_str = "\n".join([f"- **{x['title']}** (PageRank??摨? {x['pagerank']:.4f})" for x in metrics.get("influence", [])[:3]])
++                    
++                    comm_str = ""
++                    for cid, papers in metrics.get("communities", {}).items():
++                        comm_str += f"- ?銵?瘣?蝷曄黎 {cid}:\n"
++                        for p in papers:
++                            comm_str += f"  * {p}\n"
++                    
++                    bridges = [x for x in metrics.get("bridges", []) if x['betweenness'] > 0]
++                    bridge_str = "\n".join([f"- **{x['title']}** (Betweenness璈摨? {x['betweenness']:.4f})" for x in bridges[:3]])
++                    if not bridge_str:
++                        bridge_str = "- 撠憿航??楊??璈???
++                        
++                    graph_insights_str = f"1. ?詨???? (PageRank):\n{infl_str}\n\n2. ?銵冗蝢文?蝯?(Louvain):\n{comm_str}\n\n3. 頝券????交???(Betweenness):\n{bridge_str}"
++                except Exception as ge:
++                    logger.warning(f"Failed to compute graph metrics for directions: {ge}")
++                    graph_insights_str = "????閮?憭望?嚗?雿輻?拚????
++
++            report = await self.direction_skill.analyze(matrix, role_context=full_context, graph_insights=graph_insights_str)
++            self._direction_cache[session_id] = report
++            self._save_session_data()
++            
++            suggestions = await self._generate_suggestions("direction", report, role_context, message)
++            return {"type": "direction", "content": report, "suggestions": suggestions}
+ 
+         try:
+-            if intent == "set_direction":
+-                # ??憭找葉撠??-                extracted = await self._extract_directions_from_message(message)
+-                large = extracted.get("large") or ""
+-                medium = extracted.get("medium") or ""
+-                small = extracted.get("small") or ""
+-                
+-                # 憒???憭望?嚗岫? infer
+-                if not large:
+-                    await self._infer_and_update_direction(session_id, "", [], message)
++            # ?芸?瑼Ｘ葫雿輻?撓?交?血???URL ??DOI
++            import re
++            # ? URL 銝剔?蝛箸嚗?憒?https : // 頧 https://嚗?+            cleaned_message = re.sub(r'(https?)\s*:\s*/\s*/', r'\1://', message)
++            
++            url_match = re.search(r'(https?://[^\s]+)', cleaned_message)
++            doi_match = re.search(r'(10\.\d{4,9}/[-._;()/:a-zA-Z0-9]+)', cleaned_message)
++            
++            is_url_or_doi = False
++            target_query = ""
++            if doi_match:
++                is_url_or_doi = True
++                target_query = doi_match.group(1)
++            elif url_match:
++                is_url_or_doi = True
++                target_query = url_match.group(1)
++            
++            # ?亦 URL/DOI嚗?仿脰??孵???????閬???+            if is_url_or_doi:
++                logger.info(f"Direct URL/DOI detected: {target_query}")
++                paper = await self.search_skill.fetch_paper_by_id_or_url(target_query)
++                if paper:
++                    import uuid
++                    paper_id = paper.paper_id or str(uuid.uuid4())[:8]
++                    content = paper.abstract or "?⊥?閬?
++                    
++                    # 雿輻 analysis_skill.summarize ????
++                    summary = await self.analysis_skill.summarize(
++                        paper_id=paper_id,
++                        title=paper.title,
++                        authors=paper.authors,
++                        year=paper.year,
++                        content=content,
++                    )
++                    
++                    if session_id not in self._summaries:
++                        self._summaries[session_id] = []
++                    # ?踹????
++                    if not any(x.title.lower() == summary.title.lower() for x in self._summaries[session_id]):
++                        self._summaries[session_id].append(summary)
++                    self._save_session_data()
++                    
++                    # ??撠?閮神??RAG
++                    try:
++                        self.rag_store.add_document(paper_id, content, {"title": summary.title, "year": summary.year})
++                    except Exception as ree:
++                        logger.warning(f"Failed to add to RAG: {ree}")
++                    
++                    result_text = f"??撌脫????蒂???冽?靘?隢?嚗?*{summary.title}**\n\n"
++                    result_text += f"**?弦?桃?嚗?* {summary.research_goal}\n\n"
++                    result_text += f"**銝餉??潛嚗?* {summary.main_findings}\n\n"
++                    result_text += f"**?弦?嚗?* {summary.limitations}\n\n"
++                    result_text += "*(甇方???瑽???撌脰?摮????閬??葉)*"
++                    
++                    suggestions = await self._generate_suggestions("analyze", result_text, role_context, message)
++                    return {"type": "analyze", "content": result_text, "suggestions": suggestions}
+                 else:
++                    # ??寞?嚗??瘜? Semantic Scholar ??摮貉?鞈?嚗?閰衣?亦?雯?摰寥脰???
++                    if target_query.startswith("http://") or target_query.startswith("https://"):
++                        try:
++                            logger.info(f"Semantic Scholar lookup failed. Crawling URL directly: {target_query}")
++                            import httpx
++                            # ?砍?蝬脤??批捆
++                            async with httpx.AsyncClient(timeout=15, follow_redirects=True) as client:
++                                resp = await client.get(target_query, headers={
++                                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
++                                })
++                                if resp.status_code == 200:
++                                    html_content = resp.text
++                                    # 蝪∪皜? HTML 璅惜
++                                    import re
++                                    text_content = re.sub(r'<script.*?</script>', '', html_content, flags=re.DOTALL)
++                                    text_content = re.sub(r'<style.*?</style>', '', text_content, flags=re.DOTALL)
++                                    text_content = re.sub(r'<.*?>', '', text_content, flags=re.DOTALL)
++                                    text_content = re.sub(r'\s+', ' ', text_content).strip()
++                                    
++                                    # ??蝬脤?璅?
++                                    title_match = re.search(r'<title>(.*?)</title>', html_content, re.IGNORECASE)
++                                    page_title = title_match.group(1).strip() if title_match else "蝬脰楝??"
++                                    
++                                    # ????
++                                    import uuid
++                                    paper_id = str(uuid.uuid4())[:8]
++                                    summary = await self.analysis_skill.summarize(
++                                        paper_id=paper_id,
++                                        title=page_title,
++                                        authors=["蝬脰楝雿?],
++                                        year=None,
++                                        content=text_content[:8000],
++                                    )
++                                    
++                                    if session_id not in self._summaries:
++                                        self._summaries[session_id] = []
++                                    if not any(x.title.lower() == summary.title.lower() for x in self._summaries[session_id]):
++                                        self._summaries[session_id].append(summary)
++                                    self._save_session_data()
++                                    
++                                    result_text = f"??撌脫???蒂??蝬脤???嚗?*{summary.title}**\n\n"
++                                    result_text += f"**?弦?桃?嚗?* {summary.research_goal}\n\n"
++                                    result_text += f"**銝餉??潛嚗?* {summary.main_findings}\n\n"
++                                    result_text += f"**?弦?嚗?* {summary.limitations}\n\n"
++                                    result_text += "*(甇斗?蝡?瑽???撌脰?摮????閬??葉)*"
++                                    
++                                    suggestions = await self._generate_suggestions("analyze", result_text, role_context, message)
++                                    return {"type": "analyze", "content": result_text, "suggestions": suggestions}
++                        except Exception as ce:
++                            logger.warning(f"Failed to crawl URL fallback '{target_query}': {ce}")
++                    
++                    logger.warning(f"Could not fetch paper details by URL/DOI directly. Returning error message.")
++                    if target_query.startswith("http://") or target_query.startswith("https://"):
++                        error_desc = f"?? ?⊥?霈?府蝬脤????摰對??航?閰脩雯蝡??脩?脫??塚?憒?Medium / Cloudflare嚗?銝惇?澆?飛銵??澈?澆?嚗n\n**撱箄降?剁?**\n1. ?湔雿輻 **???銝隢???* ?銝 PDF 瑼??n2. 撠???閬??扳?銴ˊ銝衣?亥票銝撠店獢葉嚗???券脰?????
++                        return {"type": "error", "content": error_desc, "suggestions": ["?湔???賊??", "憒?銝 PDF 隢?"]}
++                    else:
++                        error_desc = f"?? ?⊥??? DOI `{target_query}` ?脣?隢?鞈?嚗emantic Scholar 鞈?摨思葉?航撠?園?甇?DOI嚗n\n**撱箄降?剁?**\n1. 雿輻 **???銝隢???* ?銝 PDF 瑼??n2. ?湔頛詨?摮???冽?撠隡潭??颯?
++                        return {"type": "error", "content": error_desc, "suggestions": ["?湔???賊??", "憒?銝 PDF 隢?"]}
++
++            # ??chat_model (?? Tools) ?脰?撠店嚗? Gemini ?斗?臬?閬?Function Call
++            sys_prompt = SYSTEM_PROMPT.format(role_context=full_context)
++            chat_model = genai.GenerativeModel(
++                model_name=self.MODEL_NAME,
++                system_instruction=sys_prompt,
++                tools=[search_academic_papers, generate_comparison_matrix, analyze_research_direction, set_research_direction]
++            )
++            
++            history = self._chat_sessions.get(session_id, [])
++            temp_history = list(history)
++            temp_history.append({"role": "user", "parts": [message]})
++            
++            response = await asyncio.to_thread(
++                chat_model.generate_content,
++                temp_history,
++            )
++            
++            # 瑼Ｘ?臬??Function Call
++            function_calls = []
++            if response.candidates and response.candidates[0].content.parts:
++                for part in response.candidates[0].content.parts:
++                    if part.function_call:
++                        function_calls.append(part.function_call)
++            
++            if function_calls:
++                call = function_calls[0]
++                name = call.name
++                args = call.args
++                logger.info(f"Gemini native Function Call triggered: {name} with args {args}")
++                
++                if name == "search_academic_papers":
++                    query = args.get("query") or message
++                    translated_query = await self._translate_query_to_english(query)
++                    translated_context = await self._translate_query_to_english(role_context) if role_context else ""
++                    papers = await self.search_skill.search(translated_query, context=translated_context)
++                    import uuid
++                    summary_tasks = [self.analysis_skill.summarize(paper_id=p.paper_id or str(uuid.uuid4())[:8], title=p.title, authors=p.authors, year=p.year, content=p.abstract or "?⊥?閬?) for p in papers]
++                    if summary_tasks:
++                        try:
++                            summaries = await asyncio.gather(*summary_tasks, return_exceptions=True)
++                            if session_id not in self._summaries:
++                                self._summaries[session_id] = []
++                            for s in summaries:
++                                if not isinstance(s, Exception) and not any(x.title.lower() == s.title.lower() for x in self._summaries[session_id]):
++                                    self._summaries[session_id].append(s)
++                            self._save_session_data()
++                            
++                            # ?芸?敺?撠靘?蝚砌?蝭???閬撠蒂閮剖??弦?孵?
++                            valid_summaries = [s for s in summaries if not isinstance(s, Exception)]
++                            if valid_summaries:
++                                await self._infer_and_update_direction(
++                                    session_id,
++                                    valid_summaries[0].title,
++                                    valid_summaries[0].keywords,
++                                    valid_summaries[0].research_goal + " " + valid_summaries[0].main_findings
++                                )
++                        except Exception as e:
++                            logger.warning(f"Auto-summarizing failed: {e}")
++                    result_text = f"撌脫??{len(papers)} 蝭????\n\n"
++                    for p in papers:
++                        authors = "??.join(p.authors[:3]) + ("..." if len(p.authors) > 3 else "")
++                        result_text += f"?? **{p.title}**\n"
++                        result_text += f"   - 雿?{authors}嚚僑隞踝?{p.year or '?芰'}\n"
++                        if p.abstract:
++                            result_text += f"   - ??嚗p.abstract[:150]}...\n"
++                        result_text += "\n"
++                    result_text += "*(隞乩????啁?隢?撌脰???蒂摮????閬???銝哨??典隞亙??????*"
++                    
++                    suggestions = await self._generate_suggestions("search", result_text, role_context, message)
++                    return {"type": "search", "content": result_text, "papers": [p.model_dump() for p in papers], "suggestions": suggestions}
++                
++                elif name == "generate_comparison_matrix":
++                    summaries = []
++                    seen = set()
++                    for sums in self._summaries.values():
++                        for s in sums:
++                            if s.title.lower() not in seen:
++                                seen.add(s.title.lower())
++                                summaries.append(s)
++                    if len(summaries) < 2:
++                        return {"type": "chat", "content": "?桀?撌脣???隢??賊?銝雲嚗撠?閬?2 蝭?嚗????單???隢?敺???瘥??拚??}
++                    matrix = await self.matrix_skill.build_matrix(summaries, role_context=full_context)
++                    self._matrix_cache[session_id] = matrix
++                    self._save_session_data()
++                    
++                    suggestions = await self._generate_suggestions("matrix", matrix, role_context, message)
++                    return {"type": "matrix", "content": matrix, "suggestions": suggestions}
++                
++                elif name == "analyze_research_direction":
++                    matrix = self._matrix_cache.get(session_id)
++                    if not matrix:
++                        return {"type": "chat", "content": "隢????瘥??拚嚗?閬????弦?孵???}
++                    
++                    # 閮?????
++                    from skills.graph_skill import SessionGraphSkill
++                    summaries = self.get_summaries(session_id)
++                    graph_insights_str = "撠頞喳??撱箇?????嚗撠?閬?2 蝭???
++                    if len(summaries) >= 2:
++                        try:
++                            g_skill = SessionGraphSkill()
++                            metrics = g_skill.compute_graph_metrics(summaries)
++                            
++                            infl_str = "\n".join([f"- **{x['title']}** (PageRank??摨? {x['pagerank']:.4f})" for x in metrics.get("influence", [])[:3]])
++                            
++                            comm_str = ""
++                            for cid, papers in metrics.get("communities", {}).items():
++                                comm_str += f"- ?銵?瘣?蝷曄黎 {cid}:\n"
++                                for p in papers:
++                                    comm_str += f"  * {p}\n"
++                            
++                            bridges = [x for x in metrics.get("bridges", []) if x['betweenness'] > 0]
++                            bridge_str = "\n".join([f"- **{x['title']}** (Betweenness璈摨? {x['betweenness']:.4f})" for x in bridges[:3]])
++                            if not bridge_str:
++                                bridge_str = "- 撠憿航??楊??璈???
++                                
++                            graph_insights_str = f"1. ?詨???? (PageRank):\n{infl_str}\n\n2. ?銵冗蝢文?蝯?(Louvain):\n{comm_str}\n\n3. 頝券????交???(Betweenness):\n{bridge_str}"
++                        except Exception as ge:
++                            logger.warning(f"Failed to compute graph metrics for directions: {ge}")
++                            graph_insights_str = "????閮?憭望?嚗?雿輻?拚????
++
++                    report = await self.direction_skill.analyze(matrix, role_context=full_context, graph_insights=graph_insights_str)
++                    self._direction_cache[session_id] = report
++                    self._save_session_data()
++                    
++                    suggestions = await self._generate_suggestions("direction", report, role_context, message)
++                    return {"type": "direction", "content": report, "suggestions": suggestions}
++                
++                elif name == "set_research_direction":
++                    research_dir = args.get("research_direction") or ""
++                    
+                     self.state_skill.update_state(
+                         session_id,
+-                        large_direction=large if large else None,
+-                        medium_direction=medium if medium else None,
+-                        small_direction=small if small else None
++                        research_direction=research_dir if research_dir else None
+                     )
+-                
+-                role_state = self.state_skill.get_state(session_id)
++                    
++                    role_state = self.state_skill.get_state(session_id)
++                    role_context = role_state.get_search_context()
++                    full_context = role_state.get_full_hierarchy_desc()
++                    
++                    search_query = research_dir or message
++                    translated_query = await self._translate_query_to_english(search_query)
++                    translated_context = await self._translate_query_to_english(role_context) if role_context else ""
++                    papers = await self.search_skill.search(translated_query, context=translated_context, limit=2)
++                    
++                    result_text = f"? **撌脩?刻身摰蒂?脣??弦?孵?嚗?*\n"
++                    if research_dir: result_text += f"- **?弦?孵?**嚗research_dir}\n"
++                    
++                    result_text += f"\n?? **撌脰??冽炎蝝Ｖ蒂???賊?隢?嚗?*\n\n"
++                    
++                    if papers:
++                        import uuid
++                        for idx, p in enumerate(papers):
++                            p_content = p.abstract or "?⊥?閬?
++                            paper_id = p.paper_id or str(uuid.uuid4())[:8]
++                            summary = await self.analysis_skill.summarize(
++                                paper_id=paper_id,
++                                title=p.title,
++                                authors=p.authors,
++                                year=p.year,
++                                content=p_content
++                            )
++                            if session_id not in self._summaries:
++                                self._summaries[session_id] = []
++                            if not any(x.title.lower() == summary.title.lower() for x in self._summaries[session_id]):
++                                self._summaries[session_id].append(summary)
++                        self._save_session_data()
+                 role_context = role_state.get_search_context()
+                 full_context = role_state.get_full_hierarchy_desc()
+                 
+-                search_query = small or medium or large or query or message
++                # ?芸???隢?
++                search_query = query if query else (role_context or message)
+                 translated_query = await self._translate_query_to_english(search_query)
+                 translated_context = await self._translate_query_to_english(role_context) if role_context else ""
+                 papers = await self.search_skill.search(translated_query, context=translated_context, limit=2)
+                 
+                 result_text = f"? **撌脩?刻身摰蒂?脣??弦?孵?嚗?*\n"
+-                if role_state.large_direction: result_text += f"- **憭扳??*嚗role_state.large_direction}\n"
+-                if role_state.medium_direction: result_text += f"- **銝剜??*嚗role_state.medium_direction}\n"
+-                if role_state.small_direction: result_text += f"- **撠??*嚗role_state.small_direction}\n"
++                if role_context: result_text += f"- **?弦?孵?**嚗role_context}\n"
+                 
+                 result_text += f"\n?? **撌脰??冽炎蝝Ｖ蒂???賊?隢?嚗?*\n\n"
+                 
+                 if papers:
+                     import uuid
+                     for idx, p in enumerate(papers):
+-                        content_paper = p.abstract or "?⊥?閬?
++                        content = p.abstract or "?⊥?閬?
+                         paper_id = p.paper_id or str(uuid.uuid4())[:8]
++                        
++                        # ?芸??粹嗾蝭?????閬?                         summary = await self.analysis_skill.summarize(
+                             paper_id=paper_id,
+                             title=p.title,
+                             authors=p.authors,
+                             year=p.year,
+-                            content=content_paper
++                            content=content
+                         )
++                        
+                         if session_id not in self._summaries:
+                             self._summaries[session_id] = []
++                        # ?踹????
+                         if not any(x.title.lower() == summary.title.lower() for x in self._summaries[session_id]):
+                             self._summaries[session_id].append(summary)
++                    
+                     self._save_session_data()
+                     result_text += "*(隞乩?隢???撌脰???乓???閬???銝哨??典隞亙??????*"
+                 else:
+@@ -656,106 +934,10 @@ class AgentCore:
+                 return {
+                     "type": "analyze",
+                     "content": result_text,
+-                    "papers": [p.model_dump() for p in papers] if papers else [],
++                    "papers": [p.model_dump() for p in papers],
+                     "suggestions": suggestions
+                 }
+ 
+-            elif intent == "search":
+-                translated_query = await self._translate_query_to_english(query)
+-                translated_context = await self._translate_query_to_english(role_context) if role_context else ""
+-                papers = await self.search_skill.search(translated_query, context=translated_context)
+-                import uuid
+-                summary_tasks = [self.analysis_skill.summarize(paper_id=p.paper_id or str(uuid.uuid4())[:8], title=p.title, authors=p.authors, year=p.year, content=p.abstract or "?⊥?閬?) for p in papers]
+-                if summary_tasks:
+-                    try:
+-                        summaries = await asyncio.gather(*summary_tasks, return_exceptions=True)
+-                        if session_id not in self._summaries:
+-                            self._summaries[session_id] = []
+-                        for s in summaries:
+-                            if not isinstance(s, Exception) and not any(x.title.lower() == s.title.lower() for x in self._summaries[session_id]):
+-                                self._summaries[session_id].append(s)
+-                        self._save_session_data()
+-                        
+-                        # ?芸?敺?撠靘?蝚砌?蝭???閬撠蒂閮剖??弦?孵?
+-                        valid_summaries = [s for s in summaries if not isinstance(s, Exception)]
+-                        if valid_summaries:
+-                            await self._infer_and_update_direction(
+-                                session_id,
+-                                valid_summaries[0].title,
+-                                valid_summaries[0].keywords,
+-                                valid_summaries[0].research_goal + " " + valid_summaries[0].main_findings
+-                            )
+-                    except Exception as e:
+-                        logger.warning(f"Auto-summarizing failed: {e}")
+-                result_text = f"撌脫??{len(papers)} 蝭????\n\n"
+-                for p in papers:
+-                    authors = "??.join(p.authors[:3]) + ("..." if len(p.authors) > 3 else "")
+-                    result_text += f"?? **{p.title}**\n"
+-                    result_text += f"   - 雿?{authors}嚚僑隞踝?{p.year or '?芰'}\n"
+-                    if p.abstract:
+-                        result_text += f"   - ??嚗p.abstract[:150]}...\n"
+-                    result_text += "\n"
+-                result_text += "*(隞乩????啁?隢?撌脰???蒂摮????閬???銝哨??典隞亙??????*"
+-                
+-                suggestions = await self._generate_suggestions("search", result_text, role_context, message)
+-                return {"type": "search", "content": result_text, "papers": [p.model_dump() for p in papers] if papers else [], "suggestions": suggestions}
+-
+-            elif intent == "matrix":
+-                summaries_objs = self._summaries.get(session_id, [])
+-                if len(summaries_objs) < 2:
+-                    return {"type": "chat", "content": "?桀?撌脣???隢??賊?銝雲嚗撠?閬?2 蝭?嚗????單???隢?敺???瘥??拚??}
+-                matrix = await self.matrix_skill.build_matrix(summaries_objs, role_context=full_context)
+-                self._matrix_cache[session_id] = matrix
+-                self._save_session_data()
+-                
+-                suggestions = await self._generate_suggestions("matrix", matrix, role_context, message)
+-                return {"type": "matrix", "content": matrix, "suggestions": suggestions}
+-
+-            elif intent == "direction":
+-                matrix = self._matrix_cache.get(session_id)
+-                if not matrix:
+-                    summaries_objs = self._summaries.get(session_id, [])
+-                    if len(summaries_objs) >= 2:
+-                        matrix = await self.matrix_skill.build_matrix(summaries_objs, role_context=full_context)
+-                        self._matrix_cache[session_id] = matrix
+-                        self._save_session_data()
+-                    else:
+-                        return {"type": "chat", "content": "?桀?撌脣???隢??賊?銝雲嚗撠?閬?2 蝭?嚗????單???隢?敺???瘥??拚??}
+-                
+-                # 閮?????
+-                from skills.graph_skill import SessionGraphSkill
+-                summaries = self.get_summaries(session_id)
+-                graph_insights_str = "撠頞喳??撱箇?????嚗撠?閬?2 蝭???
+-                if len(summaries) >= 2:
+-                    try:
+-                        g_skill = SessionGraphSkill()
+-                        metrics = g_skill.compute_graph_metrics(summaries)
+-                        
+-                        infl_str = "\n".join([f"- **{x['title']}** (PageRank??摨? {x['pagerank']:.4f})" for x in metrics.get("influence", [])[:3]])
+-                        
+-                        comm_str = ""
+-                        for cid, papers in metrics.get("communities", {}).items():
+-                            comm_str += f"- ?銵?瘣?蝷曄黎 {cid}:\n"
+-                            for p in papers:
+-                                comm_str += f"  * {p}\n"
+-                        
+-                        bridges = [x for x in metrics.get("bridges", []) if x['betweenness'] > 0]
+-                        bridge_str = "\n".join([f"- **{x['title']}** (Betweenness璈摨? {x['betweenness']:.4f})" for x in bridges[:3]])
+-                        if not bridge_str:
+-                            bridge_str = "- 撠憿航??楊??璈???
+-                            
+-                        graph_insights_str = f"1. ?詨???? (PageRank):\n{infl_str}\n\n2. ?銵冗蝢文?蝯?(Louvain):\n{comm_str}\n\n3. 頝券????交???(Betweenness):\n{bridge_str}"
+-                    except Exception as ge:
+-                        logger.warning(f"Failed to compute graph metrics for directions: {ge}")
+-                        graph_insights_str = "????閮?憭望?嚗?雿輻?拚????
+-
+-                report = await self.direction_skill.analyze(matrix, role_context=full_context, graph_insights=graph_insights_str)
+-                self._direction_cache[session_id] = report
+-                self._save_session_data()
+-                
+-                suggestions = await self._generate_suggestions("direction", report, role_context, message)
+-                return {"type": "direction", "content": report, "suggestions": suggestions}
+-
+             else:
+                 # 銝?砍?閰?                 sys_prompt = SYSTEM_PROMPT.format(role_context=full_context)
+@@ -778,7 +960,11 @@ class AgentCore:
+                 
+                 chat_model = genai.GenerativeModel(
+                     model_name=self.MODEL_NAME,
+-                    system_instruction=sys_prompt
++                    system_instruction=sys_prompt,
++                    generation_config=genai.GenerationConfig(
++                        temperature=0.7,
++                        max_output_tokens=1024
++                    )
+                 )
+                 response = await asyncio.to_thread(
+                     chat_model.generate_content,
+@@ -786,7 +972,7 @@ class AgentCore:
+                 )
+                 reply = response.text
+                 history.append({"role": "model", "parts": [reply]})
+-                self._chat_sessions[session_id] = history[-20:]
++                self._chat_sessions[session_id] = history[-20:]  # 靽??餈?20 ??                 
+                 suggestions = await self._generate_suggestions("chat", reply, role_context, message)
+                 return {"type": "chat", "content": reply, "suggestions": suggestions}

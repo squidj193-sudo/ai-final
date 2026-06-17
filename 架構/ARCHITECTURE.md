@@ -54,7 +54,7 @@ flowchart TD
 - **文獻矩陣 Skill**：將結構化資料彙整為比較表格。
 - **方向分析 Skill**：跨多份文件進行語意缺口分析，建議新的研究方向。
 - **角色狀態 Skill**：管理使用者的研究角色（大方向 / 中方向 / 小方向）。
-- **論文圖譜 Skill**：建立論文引用連結圖（Knowledge Graph），支援節點展開（Hop Expansion）、Louvain 社群偵測與 Gemini 圖譜報告生成。使用 **NetworkX** 計算圖指標，前端以 **react-force-graph** 渲染圖形。
+- **論文圖譜 Skill**：建立論文引用連結圖（Knowledge Graph），支援節點展開（Hop Expansion）、Louvain 社群偵測與 Gemini 圖譜報告生成。使用 **NetworkX** 計算圖指標，前端使用 **vis-network (Vis.js)** 渲染圖形。
 
 ### 2.3 RAG（檢索增強生成）管道
 RAG 管道是確保分析準確性的關鍵：

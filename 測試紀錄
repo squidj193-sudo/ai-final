@@ -7,3 +7,21 @@
 回答三：給予論文
 問題四：幫我摘要此篇論文Learning Transferable Visual Models From Natural Language Supervision, 2021
 回答四：於對話框 給予摘要 !未儲存於論文摘要!
+
+====================================================
+測試#2 - 人格與目的測試循環 (第一次疊代)
+
+[Persona 1: Eric - AI Security]
+- 測試狀況：系統初始化後，手動設定研究方向為 "LLM Security > Prompt Injection > Defense"，進行學術檢索、摘要生成、比較矩陣建立、知識圖譜分析與研究方向建議。
+- 結果：成功無錯誤，所有功能皆能正常運行。
+
+[Persona 2: Dr. Sophia Chen - Bioinformatics]
+- 測試狀況：未開新對話直接匯入示範文獻，生成比較矩陣與研究建議。
+- 遇到問題：
+  1. 系統自我檢測中「學術資料庫 API」出現 429 流量管制警告/失敗（Semantic Scholar 限制）。
+  2. 由於在同一個對話 Session 執行，系統判定已進入摘要階段而鎖定研究方向，使自動推導失靈，比較矩陣與方向建議僅涵蓋前一論文主題。
+  3. 前端「比較矩陣」與「研究方向」生成後，頂部 Stepper 進度條狀態未即時同步，需手動重整或觸發其他事件。
+- 改善對策：
+  1. 將 API 429 機制增強，或重試。
+  2. 測試新 Persona 前，必須點選「＋」建立全新對話 Session。
+  3. 已修正前端 MatrixPage 與 DirectionPage 的 onStateUpdate 呼叫，實現即時同步。

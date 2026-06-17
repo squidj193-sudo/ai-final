@@ -46,7 +46,8 @@ class AnalysisSkill:
     def __init__(self):
         api_key = os.getenv("GEMINI_API_KEY")
         genai.configure(api_key=api_key)
-        self._model = genai.GenerativeModel(
+        from tools.model_helper import FallbackGenerativeModel
+        self._model = FallbackGenerativeModel(
             self.MODEL_NAME,
             generation_config=genai.GenerationConfig(temperature=0.2, max_output_tokens=4096),
         )
@@ -60,11 +61,42 @@ class AnalysisSkill:
         content: str,
     ) -> PaperSummary:
         """對論文 Markdown 內容進行摘要與元數據提取"""
-        import json, asyncio, re
+        import json, asyncio, re, logging
+        logger = logging.getLogger("analysis_skill")
+
+        # 若無任何摘要內容，直接回傳基本佔位摘要（避免 Gemini 無法解析）
+        if not content or content.strip() in ("", "無摘要"):
+            logger.warning(f"No abstract content for paper '{title}', using placeholder summary.")
+            return PaperSummary(
+                paper_id=paper_id,
+                title=title or "未命名論文",
+                authors=authors or [],
+                year=year,
+                research_goal="（原始論文無提供摘要，無法自動分析）",
+                methodology="（無資料）",
+                main_findings="（無資料）",
+                limitations="（無資料）",
+                keywords=[],
+            )
 
         prompt = SUMMARY_PROMPT.format(content=content[:8000])  # 截斷避免超出上下文
-        response = await asyncio.to_thread(self._model.generate_content, prompt)
-        raw = response.text.strip()
+        try:
+            response = await asyncio.to_thread(self._model.generate_content, prompt)
+            raw = response.text.strip()
+        except Exception as api_e:
+            logger.warning(f"Gemini API call failed for '{title}': {api_e}")
+            # API 失敗時回傳基本資訊，確保論文不會丟失
+            return PaperSummary(
+                paper_id=paper_id,
+                title=title or "未命名論文",
+                authors=authors or [],
+                year=year,
+                research_goal="（API 呼叫失敗，無法自動分析）",
+                methodology="（無資料）",
+                main_findings="（無資料）",
+                limitations="（無資料）",
+                keywords=[],
+            )
 
         # 魯棒解析 JSON 內容
         match = re.search(r'```(?:json)?\s*(.*?)\s*```', raw, re.DOTALL | re.IGNORECASE)
@@ -78,7 +110,22 @@ class AnalysisSkill:
             else:
                 candidate = raw.strip()
 
-        parsed = json.loads(candidate)
+        try:
+            parsed = json.loads(candidate)
+        except Exception as parse_e:
+            logger.warning(f"JSON parse failed for '{title}': {parse_e}. Raw: {raw[:200]}")
+            # 解析失敗時，至少保留標題與作者等已知資訊
+            return PaperSummary(
+                paper_id=paper_id,
+                title=title or "未命名論文",
+                authors=authors or [],
+                year=year,
+                research_goal="（摘要解析失敗，請嘗試手動上傳 PDF）",
+                methodology="（無資料）",
+                main_findings="（無資料）",
+                limitations="（無資料）",
+                keywords=[],
+            )
         
         # 決定最終使用的元數據（若使用者有提供則以使用者優先，否則用 AI 提取結果）
         final_title = title if title and title.strip() else parsed.get("title", "未命名論文")
